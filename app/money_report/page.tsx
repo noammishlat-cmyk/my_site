@@ -65,7 +65,7 @@ export default function MoneyReportPage() {
   const [fixedExpenseName, setFixedExpenseName] = useState('');
   const [fixedExpenseAmount, setFixedExpenseAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const { bgColor, fgColor, hebrew_font } = useOptions();
+  const { hebrew_font } = useOptions();
 
   // Confirmation dialog state
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -116,8 +116,14 @@ export default function MoneyReportPage() {
   }
 
   useEffect(() => {
-    document.documentElement.style.setProperty('--background', bgColor);
-  }, [bgColor]);
+    // Use a real CSS linear-gradient string, NOT Tailwind classes
+    const gradientValue = "linear-gradient(135deg, #064e3b, #34d399)"; 
+    
+    document.documentElement.style.setProperty('--background', gradientValue);
+    
+    // Optional: If you want to change the text color to white for the gradient
+    document.documentElement.style.setProperty('--foreground', '#ffffff');
+  }, []);
 
   // Check authentication state
   useEffect(() => {
@@ -594,8 +600,7 @@ export default function MoneyReportPage() {
       <div className={hebrew_font.className}>
         <motion.main 
           dir="rtl" 
-          className="container mx-auto px-4 py-8 rounded-4xl" 
-          style={{backgroundColor: fgColor}}
+          className="container mx-auto px-4 py-8 rounded-4xl bg-gradient-to-b from-zinc-700 to-zinc-500" 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5 }}
@@ -631,8 +636,8 @@ export default function MoneyReportPage() {
             onClick={() => setActiveTab('current')}
             className={`px-4 py-2 font-semibold transition ${
               activeTab === 'current'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-blue-300'
+                ? 'text-blue-200 border-b-2 border-blue-600'
+                : 'text-gray-400 hover:text-blue-300'
             }`}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -643,8 +648,8 @@ export default function MoneyReportPage() {
             onClick={() => setActiveTab('past')}
             className={`px-4 py-2 font-semibold transition ${
               activeTab === 'past'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-blue-300'
+                ? 'text-blue-200 border-b-2 border-blue-600'
+                : 'text-gray-400 hover:text-blue-300'
             }`}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -655,8 +660,8 @@ export default function MoneyReportPage() {
             onClick={() => setActiveTab('fixed_spendings')}
             className={`px-4 py-2 font-semibold transition ${
               activeTab === 'fixed_spendings'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-blue-300'
+                ? 'text-blue-200 border-b-2 border-blue-600'
+                : 'text-gray-400 hover:text-blue-300'
             }`}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -676,7 +681,7 @@ export default function MoneyReportPage() {
             >
               {/* Add Product Form */}
               <motion.div 
-                className="bg-white shadow rounded-lg p-6 mb-8"
+                className="bg-zinc-100 shadow rounded-lg p-6 mb-8"
                 variants={cardVariants}
                 initial="hidden"
                 animate="visible"
@@ -750,7 +755,7 @@ export default function MoneyReportPage() {
             {/* Products List */}
             <motion.div 
               dir="ltr" 
-              className="bg-white shadow rounded-lg overflow-hidden mb-8"
+              className="bg-zinc-200 shadow rounded-lg overflow-hidden mb-8"
               variants={cardVariants}
               initial="hidden"
               animate="visible"
@@ -844,7 +849,7 @@ export default function MoneyReportPage() {
             >
               {/* Past Products */}
               <motion.div 
-                className="bg-white shadow rounded-lg p-6 mb-8"
+                className="bg-zinc-100 shadow rounded-lg p-6 mb-8"
                 variants={cardVariants}
                 initial="hidden"
                 animate="visible"
@@ -869,7 +874,7 @@ export default function MoneyReportPage() {
               )}
             </motion.div>
 
-            <motion.div className="bg-white shadow rounded-lg overflow-hidden">
+            <motion.div className="bg-zinc-100 shadow rounded-lg overflow-hidden">
               <h2 className="text-2xl font-semibold p-6 border-b text-zinc-600">הוצאות עבר - {selectedMonth}</h2>
 
               {loading ? (
@@ -954,7 +959,7 @@ export default function MoneyReportPage() {
               exit="exit"
             >
               <motion.div 
-                className="bg-white shadow rounded-lg p-6 mb-8"
+                className="bg-zinc-100 shadow rounded-lg p-6 mb-8"
                 variants={cardVariants}
                 initial="hidden"
                 animate="visible"

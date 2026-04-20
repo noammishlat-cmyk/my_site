@@ -28,7 +28,7 @@ export default function Home() {
         <Image className="invert" src="/gear.svg" width="32" height="32" alt="Settings" />
       </motion.button>
       <main className="flex w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-zinc sm:items-start">
-        <h1 className={`flex self-center py-10 text-6xl font-bold text-center ${hebrew_font.className}`}> אתר משותף </h1>
+        <h1 className={`flex self-center py-10 text-6xl font-bold text-center ${hebrew_font.className}`}> ALINOAM </h1>
         <div className="flex w-full max-w-3xl flex-col items-center justify-between bg-zinc py-16 sm:items-start gap-8">
           <button 
             className={`self-center-safe px-6 py-3 bg-blue-500 text-white rounded-lg text-lg font-semibold hover:bg-blue-600 transition-colors ${hebrew_font.className}`}

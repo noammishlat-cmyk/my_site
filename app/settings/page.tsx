@@ -12,16 +12,7 @@ import { motion } from "framer-motion"
 export default function Settings() {
   const router = useRouter();
 
-  const { bgColor, fgColor, setBgColor, setFgColor, logout, user } = useOptions();
-
-  const handleBGColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const color = e.target.value;
-    setBgColor(color);
-  };
-  const handleFGColorChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const color = e.target.value;
-    setFgColor(color);
-  };
+  const { logout, user } = useOptions();
 
   function handleLogout() {
     router.push("/");
@@ -36,7 +27,7 @@ export default function Settings() {
 
   return (
     <main>
-      <div className="flex flex-col items-center justify-center min-h-screen p-8" style={{ backgroundColor: bgColor }}>
+      <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-zinc-900">
         <motion.button 
           className="fixed top-6 right-6 bg-zinc-800 p-4 rounded-2xl"
           onClick={() => router.push("/")}
@@ -45,30 +36,7 @@ export default function Settings() {
         </motion.button>
         <h1 className="absolute text-2xl font-bold mb-8 top-8">: הגדרות</h1>
         <div className="flex flex-col space-y-8 py-8">
-          <div className="flex flex-row justify-items-center space-x-6">
-            <input
-              id="bgColor"
-              type="color"
-              value={bgColor}
-              onChange={handleBGColorChange}
-              className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
-            />
-            <label htmlFor="bgColor" className="text-lg">
-              : צבע רקע אתר
-            </label>
-          </div>
-          <div className="flex flex-row justify-items-center space-x-6">
-            <input
-              id="bgColor"
-              type="color"
-              value={fgColor}
-              onChange={handleFGColorChange}
-              className="w-8 h-8 border border-gray-300 rounded cursor-pointer"
-            />
-            <label htmlFor="bgColor" className="text-lg">
-              : צבע פנים אתר
-            </label>
-          </div>
+          
         </div>
         <motion.button
         className="absolute bottom-14 w-32 h-10 bg-red-500 text-white rounded mt-6"

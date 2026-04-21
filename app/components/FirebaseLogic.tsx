@@ -491,6 +491,8 @@ export function useFirebaseLogic() {
     try {
       await deleteDoc(doc(db, 'dates', id));
       setDateItems((p) => p.filter((d) => d.id !== id));
+      fetchDateItems()
+      fetchUncompletedDates()
       return true;
     } catch (err) {
       console.error('Error deleting date:', err); return false;
@@ -519,6 +521,18 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
     return false;
   }
 }, [fetchUncompletedDates]);
+
+  const updateDateItem = async (id: string, data: Partial<SeedDateItem>) => {
+    try {
+      const docRef = doc(db, "dates", id); // Replace "dates" with your collection name
+      await updateDoc(docRef, data);
+      fetchDateItems()
+      return true;
+    } catch (error) {
+      console.error("Error updating document: ", error);
+      return false;
+    }
+  };
 
   // ── Category mutations ─────────────────────────────────────────────────────
 
@@ -585,6 +599,7 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
     deleteDateItem,
     setDateItemCompleted,
     addDateCategory,
+    updateDateItem,
     deleteDateCategory,
   };
 }

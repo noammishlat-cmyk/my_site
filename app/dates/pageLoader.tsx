@@ -139,6 +139,9 @@ export default function DatesPage() {
   const router   = useRouter();
   const controls = useAnimation();
 
+  const [editingDate, setEditingDate] = useState<(SeedDateItem & { id: string }) | null>(null);
+const [editForm, setEditForm] = useState({ title: "", emoji: "", category: "", description: "" });
+
   const [pendingDeleteionDateID,       setPendingDeleteionDateID]       = useState("");
   const [pendingDeleteionDateName,     setPendingDeleteionDateName]     = useState("");
   const [pendingDeleteionCatagoryID,   setPendingDeleteionCatagoryID]   = useState("");
@@ -152,6 +155,7 @@ export default function DatesPage() {
     datesLoading, seedDatesIfEmpty,
     addDateItem, deleteDateItem,
     addDateCategory, deleteDateCategory,
+    updateDateItem,
     setDateItemCompleted,
   } = useFirebaseLogic();
 
@@ -247,6 +251,32 @@ export default function DatesPage() {
   const cancelCatagoryDeletion  = () => { setPendingDeleteionCatagoryID(""); setPendingDeleteionCatagoryName(""); setShowDeleteCatagoryConfirmDialog(false); };
   const confirmCatagoryDeletion = () => { if (pendingDeleteionCatagoryID) handleDeleteCategory(pendingDeleteionCatagoryID); setShowDeleteCatagoryConfirmDialog(false); };
   const setCompletedDate        = async () => { if (!selectedDate) return; await setDateItemCompleted(selectedDate.id, true); setCompleted(true); };
+
+  const openEditModal = (date: any) => { // Using any briefly or (SeedDateItem & { id: string })
+    setEditingDate(date);
+    setEditForm({
+      title: date.title,
+      emoji: date.emoji || "",
+      category: date.category,
+      description: date.description || ""
+    });
+  };
+
+  const handleUpdateDate = async () => {
+    if (!editingDate || !editForm.title.trim()) return;
+    
+    // Now .id is recognized by TypeScript
+    const ok = await updateDateItem(editingDate.id, {
+      title: editForm.title,
+      emoji: editForm.emoji,
+      category: editForm.category,
+      description: editForm.description
+    });
+    
+    if (ok) {
+      setEditingDate(null);
+    }
+  };
 
   // ── Category chips ────────────────────────────────────────────────────────
 
@@ -564,54 +594,114 @@ export default function DatesPage() {
                 </div>
 
                 {/* Cards */}
-                <motion.div style={{ display:"flex", flexDirection:"column", gap:10 }} layout>
+                <motion.div style={{ display: "flex", flexDirection: "column", gap: 10 }} layout>
                   <AnimatePresence>
                     {listDates.length === 0 && !datesLoading && (
-                      <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }}
-                        style={{ textAlign:"center", padding:"44px 0", fontFamily:"'Cormorant Garamond', serif", fontStyle:"italic", fontSize:20, color:"#4a3a5a" }}>
+                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                        style={{ textAlign: "center", padding: "44px 0", fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontSize: 20, color: "#4a3a5a" }}>
                         אין דייטים עדיין — הוסיפו אחד!
                       </motion.div>
                     )}
                     {listDates.map((date, i) => (
-                      <motion.div key={date.id} layout
-                        initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }}
-                        exit={{ opacity:0, x:-40, height:0 }}
-                        transition={{ delay:i*0.04, duration:0.24 }}
-                        whileHover={{ background:"rgba(255,255,255,0.04)", borderColor:"rgba(255,255,255,0.12)" }}
-                        style={{ background:"rgba(255,255,255,0.028)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:14, padding:"13px 15px", display:"flex", alignItems:"center", gap:13, transition:"background 0.2s, border-color 0.2s" }}>
-                        <span style={{ fontSize:26, flexShrink:0 }}>{date.emoji}</span>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:18, color:"#f0e8d8", lineHeight:1.2, marginBottom:3, fontWeight:500 }}>{date.title}</div>
-                          <div style={{ fontSize:13, color:"#5a4a6a", lineHeight:1.35 }}>{date.description}</div>
-                        </div>
-                        <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:8, flexShrink:0 }}>
-                          <span style={{ fontSize:11, padding:"3px 10px", borderRadius:12, fontWeight:500, whiteSpace:"nowrap", background:getCategoryById(date.category).color+"22", color:getCategoryById(date.category).color }}>
-                            {getCategoryById(date.category).label}
-                          </span>
-                          <div style={{ display:"flex", gap:6, fontWeight:500 }}>
-                            <span className="self-center" style={{ color:"#7a6a7a", fontSize:14 }}>בוצע :</span>
-                            <motion.button
-                              onClick={() => setDateItemCompleted(date.id, !date.completed)}
-                              whileHover={{ scale:1.15 }} whileTap={{ scale:0.9 }}
-                              style={{
-                                background: date.completed ? "rgba(100,255,180,0.1)" : "rgba(255,255,255,0.04)",
-                                border:"1px solid", borderColor: date.completed ? "rgba(100,255,180,0.3)" : "rgba(255,255,255,0.08)",
-                                color: date.completed ? "#64ffb4" : "#4a3a5a",
-                                borderRadius:8, width:28, height:28,
-                                display:"flex", alignItems:"center", justifyContent:"center",
-                                cursor:"pointer", fontSize:14, transition:"all 0.2s",
-                              }}>
-                              {date.completed ? "✓" : "O"}
-                            </motion.button>
-                            <span className="self-center" style={{ color:"#7a6a7a", fontSize:14 }}>מחק :</span>
-                            <motion.button
-                              onClick={() => { setShowDeleteDateConfirmDialog(true); setPendingDeleteionDateID(date.id); setPendingDeleteionDateName(date.title); }}
-                              whileHover={{ scale:1.15, color:"#e87080" }} whileTap={{ scale:0.9 }}
-                              style={{ background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", color:"#4a3a5a", borderRadius:8, width:28, height:28, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:17, lineHeight:1, transition:"color 0.18s" }}>
-                              X
-                            </motion.button>
+                      <motion.div
+                        key={date.id}
+                        layout
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -40, height: 0 }}
+                        transition={{ delay: i * 0.04, duration: 0.24 }}
+                        style={{ position: "relative" }}
+                      >
+                        {/* Card Container (Div instead of Button) */}
+                        <motion.div
+                          onClick={() => openEditModal(date)}
+                          whileHover={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.15)" }}
+                          whileTap={{ scale: 0.995 }}
+                          style={{
+                            width: "100%",
+                            textAlign: "right",
+                            background: "rgba(255,255,255,0.028)",
+                            border: "1px solid rgba(255,255,255,0.07)",
+                            borderRadius: 14,
+                            padding: "13px 15px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 13,
+                            cursor: "pointer",
+                            transition: "background 0.2s, border-color 0.2s"
+                          }}
+                        >
+                          <span style={{ fontSize: 26, flexShrink: 0 }}>{date.emoji}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 18, color: "#f0e8d8", lineHeight: 1.2, marginBottom: 3, fontWeight: 500 }}>
+                              {date.title}
+                            </div>
+                            <div style={{ fontSize: 13, color: "#5a4a6a", lineHeight: 1.35, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {date.description}
+                            </div>
                           </div>
-                        </div>
+
+                          {/* Action Area */}
+                          <div 
+                            style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}
+                            onClick={(e) => e.stopPropagation()} // This is key: prevents the Card's onClick (edit modal) from firing
+                          >
+                            <span style={{ 
+                              fontSize: 11, padding: "3px 10px", borderRadius: 12, fontWeight: 500, 
+                              background: getCategoryById(date.category).color + "22", 
+                              color: getCategoryById(date.category).color 
+                            }}>
+                              {getCategoryById(date.category).label}
+                            </span>
+                            
+                            <div style={{ display: "flex", gap: 6, fontWeight: 500, }}>
+                              <span className="self-center" style={{ color: "#7a6a7a", fontSize: 14 }}>
+                                בוצע :
+                              </span>
+                              <motion.button
+                                onClick={() => setDateItemCompleted(date.id, !date.completed)}
+                                whileHover={{ scale: 1.15, color: "#64ffb4" }} 
+                                whileTap={{ scale: 0.9 }}
+                                style={{
+                                  background: date.completed ? "rgba(100, 255, 180, 0.1)" : "rgba(255,255,255,0.04)",
+                                  border: "1px solid",
+                                  borderColor: date.completed ? "rgba(100, 255, 180, 0.3)" : "rgba(255,255,255,0.08)",
+                                  color: date.completed ? "#64ffb4" : "#4a3a5a",
+                                  borderRadius: 8,
+                                  width: 28, height: 28,
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  cursor: "pointer", fontSize: 14,
+                                  transition: "all 0.2s",
+                                }}
+                              >
+                                {date.completed ? "✓" : "O"}
+                              </motion.button>
+                              <span className="self-center" style={{ color: "#7a6a7a", fontSize: 14 }}>
+                                מחק :
+                              </span>
+                              <motion.button
+                                onClick={() => {
+                                  setShowDeleteDateConfirmDialog(true); 
+                                  setPendingDeleteionDateID(date.id);
+                                  setPendingDeleteionDateName(date.title)
+                                }}
+                                whileHover={{ scale: 1.15, color: "#e87080" }}
+                                whileTap={{ scale: 0.9 }}
+                                style={{
+                                  background: "rgba(255,255,255,0.04)",
+                                  border: "1px solid rgba(255,255,255,0.08)",
+                                  color: "#4a3a5a", borderRadius: 8,
+                                  width: 28, height: 28,
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  cursor: "pointer", fontSize: 17, lineHeight: 1,
+                                  transition: "color 0.18s",
+                                }}
+                              >
+                                X
+                              </motion.button>
+                            </div>
+                          </div>
+                        </motion.div>
                       </motion.div>
                     ))}
                   </AnimatePresence>
@@ -653,6 +743,59 @@ export default function DatesPage() {
                 </select>
               </div>
               <ModalActions onCancel={() => setShowDateModal(false)} onConfirm={handleAddDate} confirmLabel="הוסף דייט ✨" />
+            </Modal>
+          )}
+        </AnimatePresence>
+        {/* ═══ Edit Date Modal ═══ */}
+        <AnimatePresence>
+          {editingDate && (
+            <Modal onClose={() => setEditingDate(null)}>
+              <ModalTitle>עריכת דייט</ModalTitle>
+              
+              <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+                <EmojiPicker 
+                  value={editForm.emoji} 
+                  onChange={emoji => setEditForm(p => ({ ...p, emoji }))} 
+                />
+                <div style={{ flex: 1 }}>
+                  <Label>כותרת</Label>
+                  <Input 
+                    value={editForm.title} 
+                    onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))} 
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <Label>תיאור</Label>
+                <Input 
+                  value={editForm.description} 
+                  onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))} 
+                />
+              </div>
+
+              <div style={{ marginBottom: 24 }}>
+                <Label>שינוי קטגוריה</Label>
+                <select 
+                  value={editForm.category} 
+                  onChange={e => setEditForm(p => ({ ...p, category: e.target.value }))}
+                  style={{ 
+                    width: "100%", background: "#1c1630", border: "1px solid rgba(255,255,255,0.1)", 
+                    borderRadius: 10, padding: "11px 14px", color: "#f0e8d8", fontSize: 15, 
+                    cursor: "pointer", fontFamily: "inherit" 
+                  }}
+                >
+                  {dateCategories.map(({ id, label }) => (
+                    <option key={id} value={id}>{label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <ModalActions 
+                onCancel={() => setEditingDate(null)} 
+                onConfirm={handleUpdateDate} 
+                confirmLabel="שמור שינויים ✨" 
+              />
             </Modal>
           )}
         </AnimatePresence>
@@ -726,13 +869,32 @@ export default function DatesPage() {
 
 function Modal({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
-    <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-      onClick={e => e.target === e.currentTarget && onClose()}
-      style={{ position:"fixed", inset:0, zIndex:100, background:"rgba(9,8,15,0.88)", backdropFilter:"blur(10px)", display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+    <motion.div
+      initial={{ opacity:0 }}
+      animate={{ opacity:1 }}
+      exit={{ opacity:0 }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+      style={{
+        position:"fixed", inset:0, zIndex:100,
+        background:"rgba(9,8,15,0.88)",
+        backdropFilter:"blur(10px)",
+        display:"flex", alignItems:"center",
+        justifyContent:"center", padding:24,
+      }}
+    >
       <motion.div
-        initial={{ scale:0.87, y:30 }} animate={{ scale:1, y:0 }} exit={{ scale:0.87, y:30 }}
+        initial={{ scale:0.87, y:30 }}
+        animate={{ scale:1,    y:0  }}
+        exit={{ scale:0.87,    y:30 }}
         transition={{ type:"spring", stiffness:240, damping:24 }}
-        style={{ background:"#130f20", border:"1px solid rgba(212,168,83,0.2)", borderRadius:24, padding:"30px 26px", width:"100%", maxWidth:420, boxShadow:"0 28px 80px rgba(0,0,0,0.65)", maxHeight:"85vh", overflowY:"auto" }}>
+        style={{
+          background:"#130f20",
+          border:"1px solid rgba(212,168,83,0.2)",
+          borderRadius:24, padding:"30px 26px",
+          width:"100%", maxWidth:420,
+          boxShadow:"0 28px 80px rgba(0,0,0,0.65)",
+        }}
+      >
         {children}
       </motion.div>
     </motion.div>

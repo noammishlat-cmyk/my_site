@@ -65,6 +65,18 @@ export interface DateCategory {
 export type SeedDateItem     = Omit<DateItem,     'id' | 'createdBy' | 'timestamp'>;
 export type SeedDateCategory = { id: string } & Omit<DateCategory, 'id' | 'createdBy'>;
 
+// ─── Kitchen&Home Page Types ─────────────────────────────────────────────────────────
+
+export interface GroceryItem {
+  id: string;
+  name: string;
+  amount?: number;
+  category: string;
+  createdBy: string;
+  timestamp?: Timestamp;
+  done?: boolean;
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useFirebaseLogic() {
@@ -559,6 +571,53 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
     }
   }, []);
 
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Home&Kitchen PAGE
+  // ══════════════════════════════════════════════════════════════════════════
+
+  const [grocerysLoading,   setGrocerysLoading]   = useState(false);
+  const [grocerysItems,      setGrocerysItems]      = useState<GroceryItem[]>([]);
+
+
+  const addGroceryItem = useCallback(async (
+    item: Omit<GroceryItem, 'id' | 'createdBy' | 'timestamp | done'>,
+  ): Promise<boolean> => {
+    if (!item.name.trim() || !currentUser) return false;
+    try {
+      await addDoc(collection(db, 'grocery'), {
+        ...item, createdBy: currentUser, timestamp: Timestamp.now(), completed: false,
+      });
+      return true;
+    } catch (err) {
+      console.error('Error adding date:', err); return false;
+    }
+  }, [currentUser]);
+
+  const fetchGroceryItems = useCallback(async () => {
+    try {
+      setGrocerysLoading(true);
+      const snap = await getDocs(
+        query(collection(db, 'grocery'), orderBy('timestamp', 'desc')), // Changed from 'dates'
+      );
+      // You should probably add a [groceries, setGroceries] state to your hook
+      setGrocerysItems(snap.docs.map((d) => ({ id: d.id, ...d.data() } as GroceryItem)));
+    } catch (err) {
+      console.error('Error fetching groceries:', err);
+    } finally {
+      setGrocerysLoading(false);
+    }
+  }, []);
+
+  const toggleGroceryItem = useCallback(async (id: string, completed: boolean) => {
+    try {
+      const docRef = doc(db, 'grocery', id);
+      await updateDoc(docRef, { completed });
+      await fetchGroceryItems(); // Refresh list after update
+    } catch (err) {
+      console.error(err);
+    }
+  }, [fetchGroceryItems]);
+
   // ─────────────────────────────────────────────────────────────────────────
   //  RETURN
   // ─────────────────────────────────────────────────────────────────────────
@@ -601,5 +660,13 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
     addDateCategory,
     updateDateItem,
     deleteDateCategory,
+
+    // ── Kitchen&Home page ──
+    addGroceryItem,
+    setGrocerysLoading,
+    grocerysLoading,
+    fetchGroceryItems,
+    grocerysItems,
+    setGrocerysItems,
   };
 }

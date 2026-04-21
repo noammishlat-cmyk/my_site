@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useOptions } from '../options';
 import IsraelTime from '../components/IsraelTime';
+import { useFirebaseLogic } from '../components/FirebaseLogic';
 
 // ─── Star field canvas ────────────────────────────────────────────────────────
 
@@ -149,15 +150,22 @@ function DarkInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 export default function KitchenHomePage() {
   const router = useRouter();
   const { hebrew_font } = useOptions();
+
+  const { 
+    addGroceryItem, 
+    currentUser, 
+    fetchGroceryItems, 
+    grocerysItems,
+    setGrocerysItems,
+  } = useFirebaseLogic();
   
   const [activeTab, setActiveTab] = useState<'groceries' | 'recipes' | 'movies'>('groceries');
 
   // Local State Mocks (Replace with useFirebaseLogic later)
   const [groceryInput, setGroceryInput] = useState('');
-  const [groceries, setGroceries] = useState([
-    { id: 1, text: 'חלב שיבולת שועל', done: false },
-    { id: 2, text: 'עגבניות שרי', done: false },
-  ]);
+  useEffect(() => {
+    if (currentUser) fetchGroceryItems();
+  }, [currentUser, fetchGroceryItems]);
 
   const [recipeInput, setRecipeInput] = useState({ title: '', link: '' });
   const [recipes, setRecipes] = useState([
@@ -172,15 +180,25 @@ export default function KitchenHomePage() {
   const [randomMovie, setRandomMovie] = useState<string | null>(null);
 
   // ── Handlers ──
-  const addGrocery = (e: React.FormEvent) => {
+  const addGrocery = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!groceryInput.trim()) return;
-    setGroceries([...groceries, { id: Date.now(), text: groceryInput, done: false }]);
-    setGroceryInput('');
+    if (!groceryInput.trim() || !currentUser) return;
+
+    // Call the firebase hook
+    const success = await addGroceryItem({
+      name: groceryInput,
+      category: 'General', // Or add a category selector in your UI
+      amount: 1,
+    });
+
+    if (success) {
+      setGroceryInput('');
+      fetchGroceryItems(); // Refresh the list
+    }
   };
 
-  const toggleGrocery = (id: number) => {
-    setGroceries(groceries.map(g => g.id === id ? { ...g, done: !g.done } : g));
+  const toggleGrocery = (id: string) => {
+    setGrocerysItems(grocerysItems.map(g => g.id === id ? { ...g, done: !g.done } : g));
   };
 
   const addRecipe = (e: React.FormEvent) => {
@@ -199,13 +217,8 @@ export default function KitchenHomePage() {
 
   const pickRandomMovie = () => {
     if (movies.length === 0) return;
-    let iterations = 0;
-    const interval = setInterval(() => {
       const random = movies[Math.floor(Math.random() * movies.length)].title;
       setRandomMovie(random);
-      iterations++;
-      if (iterations > 15) clearInterval(interval);
-    }, 100);
   };
 
   const TABS = [
@@ -312,12 +325,16 @@ export default function KitchenHomePage() {
                 <GlassCard style={{ padding: '24px', marginBottom: 20 }}>
                   <form onSubmit={addGrocery} style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
                     <DarkInput value={groceryInput} onChange={e => setGroceryInput(e.target.value)} placeholder="מה חסר בבית?" />
-                    <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 11, padding: '0 20px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{ background: '#0ea5e9', color: '#fff', border: 'none', borderRadius: 11,
+                      padding: '0 20px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       הוסף
                     </motion.button>
                   </form>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {groceries.map(item => (
+                    {grocerysItems.map(item => (
                       <motion.div
                         key={item.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
                         onClick={() => toggleGrocery(item.id)}
@@ -328,7 +345,7 @@ export default function KitchenHomePage() {
                           {item.done && <span style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>✓</span>}
                         </div>
                         <span style={{ fontSize: 16, color: item.done ? '#64748b' : '#f0e8d8', textDecoration: item.done ? 'line-through' : 'none', transition: 'all 0.2s' }}>
-                          {item.text}
+                          {item.name}
                         </span>
                       </motion.div>
                     ))}

@@ -48,10 +48,19 @@ export default function EmojiPicker({ value, onChange } : EmojiPickerProps) {
   const searchRef           = useRef<HTMLInputElement>(null);
   const wrapRef             = useRef<HTMLInputElement>(null);
 
+  const isMobile = typeof window !== "undefined" && /Mobi|Android/i.test(navigator.userAgent);
+
+
   // Focus search when panel opens
   useEffect(() => {
-    if (open) setTimeout(() => searchRef.current?.focus(), 80);
-  }, [open]);
+  if (open) {
+      // Only auto-focus if we are NOT on mobile
+      if (!isMobile) {
+        const timer = setTimeout(() => searchRef.current?.focus(), 80);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [open, isMobile]);
 
   // Close on outside click
   useEffect(() => {
@@ -119,9 +128,12 @@ export default function EmojiPicker({ value, onChange } : EmojiPickerProps) {
             transition={{ duration: 0.18 }}
             style={{
               position: "absolute",
-              top: "calc(100% - 8px)", left: 0,
+              top: "calc(100% - 8px)",
+              right: isMobile ? 0 : "auto",
+              left: isMobile ? "auto" : 0,
               zIndex: 200,
-              width: 308,
+              width: "90vw",
+              maxWidth: 320,
               background: "#16101f",
               border: "1px solid rgba(212,168,83,0.22)",
               borderRadius: 18,

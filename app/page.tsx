@@ -174,6 +174,7 @@ export default function Home() {
       <div
         className={`flex items-center justify-center min-h-screen ${hebrew_font.className}`}
         style={{ background: "#09080f" }}
+        dir="rtl"
       >
         <motion.div
           animate={{ opacity: [0.3, 1, 0.3] }}
@@ -256,13 +257,13 @@ export default function Home() {
           style={{ textAlign: "center", marginBottom: 16 }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
+          transition={{ duration: 0.2 }}
         >
           {/* Glowing subtitle above */}
           <motion.p
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.7 }}
+            transition={{ delay: 0.8, duration: 0.7 }}
             style={{
               fontFamily: "'Cormorant Garamond', serif",
               fontStyle: "italic",
@@ -315,7 +316,7 @@ export default function Home() {
           <motion.div
             initial={{ scaleX: 0, opacity: 0 }}
             animate={{ scaleX: 1, opacity: 1 }}
-            transition={{ delay: 1.3, duration: 0.8, ease: "easeOut" }}
+            transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }}
             style={{
               margin: "20px auto 0",
               width: 180,
@@ -329,7 +330,7 @@ export default function Home() {
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.1, duration: 0.7, ease: "easeOut" }}
+          transition={{ delay: 0.2, duration: 0.7, ease: "easeOut" }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -345,7 +346,7 @@ export default function Home() {
               onClick={() => router.push(card.route)}
               initial={{ opacity: 0, x: i % 2 === 0 ? -30 : 30 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 1.25 + i * 0.15, duration: 0.55, type: "spring", stiffness: 160, damping: 20 }}
+              transition={{ delay: 0.3 + i * 0.15, duration: 0.55, type: "spring", stiffness: 160, damping: 20 }}
               whileHover={{
                 scale: 1.03,
                 boxShadow: `0 12px 48px ${card.glow}`,
@@ -415,7 +416,7 @@ export default function Home() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1.8, duration: 0.6 }}
+          transition={{ delay: 0.8, duration: 0.6 }}
           style={{ marginTop: 48 }}
           dir="ltr"
         >

@@ -82,7 +82,23 @@ export interface RecipeItem {
   id: string;
   name: string;
   link?: string;
+  ingredients?: string
   description?: string;
+  createdBy: string;
+  timestamp?: Timestamp;
+}
+
+export interface MovieItem {
+  id: string;
+  name: string;
+  createdBy: string;
+  timestamp?: Timestamp;
+}
+
+export interface MovieSiteItem {
+  id: string;
+  name: string;
+  url: string;
   createdBy: string;
   timestamp?: Timestamp;
 }
@@ -587,6 +603,7 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
 
   // ── Shopping List ─────────────────────────────────────────────────────
   const [grocerysLoading,   setGrocerysLoading]   = useState(false);
+  const [gorcerieLoadedOnce, setGrocerieLoadedOnce] = useState(false)
   const [grocerysItems,      setGrocerysItems]      = useState<GroceryItem[]>([]);
 
   const addGroceryItem = useCallback(async (
@@ -605,18 +622,21 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
 
   const fetchGroceryItems = useCallback(async () => {
     try {
-      setGrocerysLoading(true);
+      if (!gorcerieLoadedOnce)
+      {
+        setGrocerysLoading(true);
+        setGrocerieLoadedOnce(true);
+      }
       const snap = await getDocs(
         query(collection(db, 'grocery'), orderBy('timestamp', 'desc')), // Changed from 'dates'
       );
-      // You should probably add a [groceries, setGroceries] state to your hook
       setGrocerysItems(snap.docs.map((d) => ({ id: d.id, ...d.data() } as GroceryItem)));
     } catch (err) {
       console.error('Error fetching groceries:', err);
     } finally {
       setGrocerysLoading(false);
     }
-  }, []);
+  }, [gorcerieLoadedOnce]);
 
   const setGroceryAmount = useCallback(async (id: string, amount: number) => {
     try {
@@ -667,13 +687,12 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
   const deleteGroceryItem = useCallback(async (id: string): Promise<boolean> => {
     try {
       await deleteDoc(doc(db, 'grocery', id));
-      setDateItems((p) => p.filter((d) => d.id !== id));
-      fetchGroceryItems()
+      setGrocerysItems((p) => p.filter((d) => d.id !== id));
       return true;
     } catch (err) {
       console.error('Error deleting date:', err); return false;
     }
-  }, [fetchGroceryItems]);
+  }, []);
 
   // ── Recipes ─────────────────────────────────────────────────────
 
@@ -686,10 +705,9 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
       const snap = await getDocs(
         query(collection(db, 'recepies'), orderBy('timestamp')),
       );
-      // You should probably add a [groceries, setGroceries] state to your hook
       setRecipeItems(snap.docs.map((d) => ({ id: d.id, ...d.data() } as GroceryItem)));
     } catch (err) {
-      console.error('Error fetching groceries:', err);
+      console.error('Error fetching recipes:', err);
     } finally {
       setRecipesLoading(false);
     }
@@ -713,14 +731,97 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
   const deleteRecipeItem = useCallback(async (id: string): Promise<boolean> => {
     try {
       await deleteDoc(doc(db, 'recepies', id));
-      setDateItems((p) => p.filter((d) => d.id !== id));
-      fetchRecipeItems()
+      setMovieItems((p) => p.filter((d) => d.id !== id));
       return true;
     } catch (err) {
       console.error('Error deleting date:', err); return false;
     }
-  }, [fetchRecipeItems]);
+  }, []);
   
+  // ── Movies ─────────────────────────────────────────────────────
+
+  const [moviesLoading,   setMoviesLoading]   = useState(false);
+  const [movieItems,      setMovieItems]      = useState<MovieItem[]>([]);
+  const [movieSitesLoading,   setMoviesSiteLoading]   = useState(false);
+  const [movieSiteItems,      setMovieSiteItems]      = useState<MovieSiteItem[]>([]);
+
+  const fetchMovieItems = useCallback(async () => {
+    try {
+      setMoviesLoading(true);
+      const snap = await getDocs(
+        query(collection(db, 'movies'), orderBy('timestamp')),
+      );
+      setMovieItems(snap.docs.map((d) => ({ id: d.id, ...d.data() } as MovieItem)));
+    } catch (err) {
+      console.error('Error fetching movies:', err);
+    } finally {
+      setMoviesLoading(false);
+    }
+  }, []);
+
+  const addMovieItem = useCallback(async (
+    item: Omit<MovieItem, 'id' | 'createdBy' | 'timestamp '>,
+  ): Promise<boolean> => {
+    if (!item.name.trim() || !currentUser) return false;
+    try {
+      await addDoc(collection(db, 'movies'), {
+        ...item, createdBy: currentUser, timestamp: Timestamp.now()
+      });
+      fetchMovieItems();
+      return true;
+    } catch (err) {
+      console.error('Error adding date:', err); return false;
+    }
+  }, [currentUser, fetchMovieItems]);
+
+  const deleteMovieItem = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      await deleteDoc(doc(db, 'movies', id));
+      setMovieItems((p) => p.filter((d) => d.id !== id));
+      return true;
+    } catch (err) {
+      console.error('Error deleting date:', err); return false;
+    }
+  }, []);
+
+  const fetchMovieSiteItems = useCallback(async () => {
+    try {
+      setMoviesSiteLoading(true);
+      const snap = await getDocs(
+        query(collection(db, 'movie_sites'), orderBy('timestamp')),
+      );
+      setMovieSiteItems(snap.docs.map((d) => ({ id: d.id, ...d.data() } as MovieSiteItem)));
+    } catch (err) {
+      console.error('Error fetching movie site:', err);
+    } finally {
+      setMoviesSiteLoading(false);
+    }
+  }, []);
+
+  const addMovieSiteItem = useCallback(async (
+    item: Omit<MovieSiteItem, 'id' | 'createdBy' | 'timestamp '>,
+  ): Promise<boolean> => {
+    if (!item.name.trim() || !currentUser) return false;
+    try {
+      await addDoc(collection(db, 'movie_sites'), {
+        ...item, createdBy: currentUser, timestamp: Timestamp.now()
+      });
+      fetchMovieSiteItems();
+      return true;
+    } catch (err) {
+      console.error('Error adding date:', err); return false;
+    }
+  }, [currentUser, fetchMovieSiteItems]);
+
+  const deleteMovieSiteItem = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      await deleteDoc(doc(db, 'movie_sites', id));
+      setMovieSiteItems((p) => p.filter((d) => d.id !== id));
+      return true;
+    } catch (err) {
+      console.error('Error deleting date:', err); return false;
+    }
+  }, []);
 
   // ─────────────────────────────────────────────────────────────────────────
   //  RETURN
@@ -781,5 +882,15 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
     addRecipeItem,
     deleteRecipeItem,
     fetchRecipeItems,
+    fetchMovieItems,
+    movieItems,
+    addMovieItem,
+    deleteMovieItem,
+    moviesLoading,
+    movieSitesLoading,
+    movieSiteItems,
+    fetchMovieSiteItems,
+    addMovieSiteItem,
+    deleteMovieSiteItem,
   };
 }

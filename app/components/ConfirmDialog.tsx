@@ -24,55 +24,110 @@ export default function ConfirmDialog({
   onCancel,
   isDangerous = false,
 }: ConfirmDialogProps) {
-  const {hebrew_font} = useOptions();
+  const { hebrew_font } = useOptions();
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
+          {/* Backdrop - Matching your page depth */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-110"
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-[#03060a]/70 backdrop-blur-md z-[110]"
             onClick={onCancel}
           />
 
-          {/* Modal */}
-          <motion.div
+          {/* Modal Container */}
+          <div 
+            className={`fixed inset-0 flex items-center justify-center z-[120] pointer-events-none p-4 ${hebrew_font.className}`}
             dir="rtl"
-            initial={{ opacity: 0, scale: 0.95, y: -20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -20 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-            className={`fixed inset-0 flex items-center justify-center z-120 pointer-events-none ${hebrew_font.className}`}
           >
-            <div className="bg-white rounded-lg shadow-2xl p-6 w-96 pointer-events-auto">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">{title}</h2>
-              <p className="text-gray-600 mb-6">{message}</p>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 400 }}
+              className="w-full max-w-sm pointer-events-auto overflow-hidden"
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                backdropFilter: 'blur(24px)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: 24,
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              }}
+            >
+              {/* Content */}
+              <div className="p-8">
+                <h2 style={{ 
+                  fontSize: 22, 
+                  fontWeight: 600, 
+                  color: '#f0e8d8', 
+                  marginBottom: 12,
+                  letterSpacing: '-0.01em'
+                }}>
+                  {title}
+                </h2>
+                <p style={{ 
+                  fontSize: 15, 
+                  color: '#94a3b8', 
+                  lineHeight: '1.6',
+                  marginBottom: 32 
+                }}>
+                  {message}
+                </p>
 
-              <div className="flex gap-3 justify-end">
-                <button
-                  onClick={onCancel}
-                  className="px-4 py-2 rounded-md bg-gray-200 text-gray-900 font-semibold hover:bg-gray-300 transition"
-                >
-                  {cancelText}
-                </button>
-                <button
-                  onClick={onConfirm}
-                  className={`px-4 py-2 rounded-md text-white font-semibold transition ${
-                    isDangerous
-                      ? 'bg-red-600 hover:bg-red-700'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  {confirmText}
-                </button>
+                {/* Actions */}
+                <div className="flex gap-3">
+                  <motion.button
+                    whileHover={{ scale: 1.02, background: 'rgba(255, 255, 255, 0.08)' }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={onCancel}
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      borderRadius: 14,
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      color: '#94a3b8',
+                      fontSize: 15,
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {cancelText}
+                  </motion.button>
+                  
+                  <motion.button
+                    whileHover={{ scale: 1.02, filter: 'brightness(1.1)' }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={onConfirm}
+                    style={{
+                      flex: 2,
+                      padding: '12px',
+                      borderRadius: 14,
+                      border: 'none',
+                      background: isDangerous 
+                        ? 'linear-gradient(0deg, #693E3E, #C76C58)' 
+                        : 'linear-gradient(0deg, #0284c7, #06b6d4)',
+                      color: '#ffffff',
+                      fontSize: 15,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      boxShadow: isDangerous 
+                        ? '0 4px 14px rgba(239, 68, 68, 0.3)' 
+                        : '0 4px 14px rgba(2, 132, 199, 0.3)',
+                    }}
+                  >
+                    {confirmText}
+                  </motion.button>
+                </div>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

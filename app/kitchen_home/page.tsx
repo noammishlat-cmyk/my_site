@@ -163,6 +163,7 @@ export default function KitchenHomePage() {
     currentUser, 
     fetchGroceryItems, 
     grocerysItems,
+    grocerysLoading,
     toggleGroceryAmountMode,
     setGroceryAmount,
     deleteGroceryItem,
@@ -172,6 +173,16 @@ export default function KitchenHomePage() {
     fetchRecipeItems,
     addRecipeItem,
     deleteRecipeItem,
+    movieItems,
+    addMovieItem,
+    deleteMovieItem,
+    fetchMovieItems,
+    moviesLoading,
+    movieSitesLoading,
+    movieSiteItems,
+    fetchMovieSiteItems,
+    addMovieSiteItem,
+    deleteMovieSiteItem,
   } = useFirebaseLogic();
   
   const [activeTab, setActiveTab] = useState<'groceries' | 'recipes' | 'movies'>('groceries');
@@ -189,7 +200,10 @@ export default function KitchenHomePage() {
   }, [currentUser, fetchGroceryItems]);
 
   const [isLinkMode, setIsLinkMode] = useState(true);
-  const [recipeInput, setRecipeInput] = useState({ name: '', link: '', description: '' });
+  const [recipeInput, setRecipeInput] = useState({ name: '', link: '', description: '', ingredients: '' });
+  const [recipeSearch, setRecipeSearch] = useState('');
+  const [showIngredientModal, setShowIngredientModal] = useState(false);
+  const [ingredientQuery, setIngredientQuery] = useState('');
   useEffect(() => {
     if (currentUser) fetchRecipeItems();
   }, [currentUser, fetchRecipeItems]);
@@ -200,12 +214,17 @@ export default function KitchenHomePage() {
   const cancelRecipeItemDeletion      = () => { setPendingRecipeItem(null); setShowDeleteRecipeConfirmDialog(false); };
   const confirmRecipeItemDeletion     = () => { if (pendingRecipeItem) deleteRecipeItem(pendingRecipeItem.id); setShowDeleteRecipeConfirmDialog(false); };
 
-  const [movieInput, setMovieInput] = useState('');
-  const [movies, setMovies] = useState([
-    { id: 1, title: 'The Bear' },
-    { id: 2, title: 'Dune: Part Two' },
-  ]);
+  const [movieInput, setMovieInput] = useState({name: ''});
   const [randomMovie, setRandomMovie] = useState<string | null>(null);
+  useEffect(() => {
+    if (currentUser) fetchMovieItems();
+  }, [currentUser, fetchMovieItems]);
+
+  const [showDeleteMovieConfirmDialog, setShowDeleteMovieConfirmDialog] = useState<boolean>(false);
+  const [pendingMovieItem, setPendingMovieItem] = useState<PendingItem | null>(null)
+
+  const cancelMovieItemDeletion      = () => { setPendingMovieItem(null); setShowDeleteMovieConfirmDialog(false); };
+  const confirmMovieItemDeletion     = () => { if (pendingMovieItem) deleteMovieItem(pendingMovieItem.id); setShowDeleteMovieConfirmDialog(false); };
 
   // ── Handlers ──
   const addGrocery = async (e: React.FormEvent) => {
@@ -226,26 +245,62 @@ export default function KitchenHomePage() {
   };
   
   const handleAddRecepie = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!recipeInput.name.trim()) return;
+      const ok = await addRecipeItem(recipeInput);
+      if (ok) {
+        setRecipeInput({ name:"", link:"", description:"", ingredients: '' });
+      }
+    };
+
+    const filteredRecipes = recipeItems.filter(r =>
+    r.name.toLowerCase().includes(recipeSearch.toLowerCase())
+  );
+
+  const ingredientResults = ingredientQuery.trim()
+    ? recipeItems.filter(r =>
+        ingredientQuery.split(',').map(s => s.trim().toLowerCase()).every(ing =>
+          (r.ingredients ?? '').toLowerCase().includes(ing) ||
+          (r.description ?? '').toLowerCase().includes(ing)
+        )
+      )
+    : [];
+
+  const addMovie = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!recipeInput.name.trim()) return;
-    const ok = await addRecipeItem(recipeInput);
+    if (!movieInput.name.trim()) return;
+    const ok = await addMovieItem(movieInput);
     if (ok) {
-      setRecipeInput({ name:"", link:"", description:"" });
+      setMovieInput({name:''});
     }
   };
 
-  const addMovie = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!movieInput.trim()) return;
-    setMovies([...movies, { id: Date.now(), title: movieInput }]);
-    setMovieInput('');
-  };
-
   const pickRandomMovie = () => {
-    if (movies.length === 0) return;
-      const random = movies[Math.floor(Math.random() * movies.length)].title;
+    if (movieItems.length === 0) return;
+      const random = movieItems[Math.floor(Math.random() * movieItems.length)].name;
       setRandomMovie(random);
   };
+
+  const [isSiteModalOpen, setIsSiteModalOpen] = useState(false);
+  const [movieSiteInput, setMovieSiteInput] = useState({ name: '', url: '' });
+
+  const [showDeleteMovieSiteConfirmDialog, setShowDeleteMovieSiteConfirmDialog] = useState<boolean>(false);
+  const [pendingMovieSiteItem, setPendingMovieSiteItem] = useState<PendingItem | null>(null)
+
+  const cancelMovieSiteItemDeletion      = () => { setPendingMovieSiteItem(null); setShowDeleteMovieSiteConfirmDialog(false); };
+  const confirmMovieSiteItemDeletion     = () => { if (pendingMovieSiteItem) deleteMovieSiteItem(pendingMovieSiteItem.id); setShowDeleteMovieSiteConfirmDialog(false); };
+
+  const addMovieSite = async (e: React.FormEvent) => {
+    if (!movieSiteInput.name.trim() || !movieSiteInput.url) return;
+    const ok = await addMovieSiteItem(movieSiteInput)
+    if (ok) {
+      setMovieSiteInput({ name: '', url: '' });
+    }
+  };
+
+  useEffect(() => {
+    if (currentUser) fetchMovieSiteItems();
+  }, [currentUser, fetchMovieSiteItems]);
 
   const TABS = [
     { id: 'groceries', label: 'רשימת קניות', icon: '🛒' },
@@ -344,17 +399,31 @@ export default function KitchenHomePage() {
 
           {/* --- MODALS --- */}
           <ConfirmDialog isOpen={showDeleteGroceryConfirmDialog} title="האם ברצונך למחוק את הפריט?"
-            message={`האם למחוק את הפריט : ${pendingGroceryItem?.name}`}
-            confirmText="אישור" cancelText="ביטול"
+            message={`האם למחוק את הפריט : '${pendingGroceryItem?.name}'?`}
+            confirmText="מחק" cancelText="ביטול"
             onConfirm={confirmGroceryItemDeletion}
             onCancel={cancelGroceryItemDeletion}
             isDangerous />
 
           <ConfirmDialog isOpen={showDeleteRecipeConfirmDialog} title="האם ברצונך למחוק את המתכון?"
-            message={`האם למחוק את המתכון : ${pendingRecipeItem?.name}`}
-            confirmText="אישור" cancelText="ביטול"
+            message={`האם למחוק את המתכון : '${pendingRecipeItem?.name}'?`}
+            confirmText="מחק" cancelText="ביטול"
             onConfirm={confirmRecipeItemDeletion}
             onCancel={cancelRecipeItemDeletion}
+            isDangerous />
+
+          <ConfirmDialog isOpen={showDeleteMovieConfirmDialog} title="האם ברצונך למחוק את הסרט מהרשימה?"
+            message={`האם למחוק את הסרט : '${pendingMovieItem?.name}' מהרשימה?`}
+            confirmText="מחק" cancelText="ביטול"
+            onConfirm={confirmMovieItemDeletion}
+            onCancel={cancelMovieItemDeletion}
+            isDangerous />
+
+          <ConfirmDialog isOpen={showDeleteMovieSiteConfirmDialog} title="האם ברצונך למחוק את האתר מהרשימה?"
+            message={`האם למחוק את האתר : '${pendingMovieSiteItem?.name}' מהרשימה?`}
+            confirmText="מחק" cancelText="ביטול"
+            onConfirm={confirmMovieSiteItemDeletion}
+            onCancel={cancelMovieSiteItemDeletion}
             isDangerous />
 
           {/* ── Tab Content ── */}
@@ -374,105 +443,133 @@ export default function KitchenHomePage() {
                       הוסף
                     </motion.button>
                   </form>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {grocerysItems.map(item => (
+                  {grocerysLoading ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {[1, 2, 3].map((i) => (
                         <motion.div
-                          key={item.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                          onClick={() => toggleGroceryItemDone(item.id, !item.done)}
-                          whileHover={{ background: 'rgba(255,255,255,0.08)' }}
-                          style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.03)', padding: '14px 18px', borderRadius: 14, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)' }}
+                          key={`skeleton-${i}`}
+                          initial={{ opacity: 0.4 }}
+                          animate={{ opacity: [0.4, 0.7, 0.4] }}
+                          transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                          style={{
+                            height: '54px',
+                            background: 'rgba(255,255,255,0.03)',
+                            border: '1px solid rgba(255,255,255,0.05)',
+                            borderRadius: 14,
+                            display: 'flex',
+                            alignItems: 'center',
+                            padding: '14px 18px',
+                            gap: 12
+                          }}
                         >
-                          {/* 1. CHECKBOX */}
-                          <div 
-                            style={{ width: 22, height: 22, borderRadius: 6,
-                            border: `2px solid ${item.done ? '#06b6d4' : '#555'}`, display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', background: item.done ? '#06b6d4' : 'transparent', transition: 'all 0.2s' }}>
-                            {item.done && <span style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>✓</span>}
-                          </div>
-
-                          {/* 2. ITEM NAME */}
-                          <span style={{ fontSize: 16, color: item.done ? '#64748b' : '#f0e8d8', textDecoration: item.done ? 'line-through' : 'none', transition: 'all 0.2s' }}>
-                            {item.name}
-                          </span>
-
-                          {/* 3. NEW: AMOUNT SECTION */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 'auto' }}>
-                            <AnimatePresence mode="wait">
-                              {item.amount > 0 ? (
-                                <motion.input
-                                  key="amount-input"
-                                  initial={{ opacity: 0, x: 10, width: 0 }}
-                                  animate={{ opacity: 1, x: 0, width: 50 }}
-                                  exit={{ opacity: 0, x: 10, width: 0 }}
-                                  type="number"
-                                  placeholder="1"
-                                  value={item.amount}
-                                  onClick={(e) => e.stopPropagation()}
-                                  onChange={(e) => {
-                                    const val = e.target.value === '' ? 0 : Number(e.target.value);
-                                    setGroceryAmount(item.id, val);
-                                  }}
-                                  style={{
-                                    background: 'rgba(255,255,255,0.05)',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    borderRadius: 6,
-                                    color: '#fff',
-                                    padding: '4px 8px',
-                                    fontSize: 14,
-                                    outline: 'none'
-                                  }}
-                                />
-                              ) : null}
-                            </AnimatePresence>
-
-                            <motion.button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                toggleGroceryAmountMode(item.id); 
-                              }}
-                              whileHover={{ background: 'rgba(14, 165, 233, 0.2)' }}
-                              style={{
-                                background: item.amount > 0 ? '#0ea5e9' : 'rgba(255,255,255,0.05)',
-                                border: 'none',
-                                borderRadius: 8,
-                                color: item.amount > 0 ? '#fff' : '#7a6a7a',
-                                padding: '4px 10px',
-                                fontSize: 12,
-                                cursor: 'pointer',
-                                transition: 'all 0.2s'
-                              }}
-                            >
-                              {item.amount > 0 ? 'כמות' : '#'}
-                            </motion.button>
-                          </div>
-
-                          {/* 4. DELETE BUTTON */}
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
-                            <motion.button
-                              onClick={(e) => {
-                                e.stopPropagation(); 
-                                setPendingGroceryItem(item)
-                                setShowDeleteGroceryConfirmDialog(true)
-                              }}
-                              whileHover={{ scale: 1.15, color: "#e87080" }}
-                              whileTap={{ scale: 0.9 }}
-                              style={{
-                                background: "rgba(255,255,255,0.04)",
-                                border: "1px solid rgba(255,255,255,0.08)",
-                                color: "#4a3a5a", 
-                                borderRadius: 8,
-                                width: 28, height: 28,
-                                display: "flex", alignItems: "center", justifyContent: "center",
-                                cursor: "pointer", fontSize: 17, lineHeight: 1,
-                                transition: "color 0.18s",
-                              }}
-                            >
-                              X
-                            </motion.button>
-                          </div>
+                          {/* Skeleton Layout */}
+                          <div style={{ width: 22, height: 22, borderRadius: 6, background: 'rgba(255,255,255,0.05)' }} />
+                          <div style={{ width: '40%', height: 14, borderRadius: 4, background: 'rgba(255,255,255,0.05)' }} />
+                          <div style={{ marginLeft: 'auto', width: 45, height: 24, borderRadius: 8, background: 'rgba(255,255,255,0.05)' }} />
                         </motion.div>
                       ))}
                     </div>
+                  ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {grocerysItems.map(item => (
+                      <motion.div
+                        key={item.id} layout initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+                        onClick={() => toggleGroceryItemDone(item.id, !item.done)}
+                        whileHover={{ background: 'rgba(255,255,255,0.08)' }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(255,255,255,0.03)', padding: '14px 18px', borderRadius: 14, cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)' }}
+                      >
+                        {/* 1. CHECKBOX */}
+                        <div 
+                          style={{ width: 22, height: 22, borderRadius: 6,
+                          border: `2px solid ${item.done ? '#06b6d4' : '#555'}`, display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', background: item.done ? '#06b6d4' : 'transparent', transition: 'all 0.2s' }}>
+                          {item.done && <span style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>✓</span>}
+                        </div>
+
+                        {/* 2. ITEM NAME */}
+                        <span style={{ fontSize: 16, color: item.done ? '#64748b' : '#f0e8d8', textDecoration: item.done ? 'line-through' : 'none', transition: 'all 0.2s' }}>
+                          {item.name}
+                        </span>
+
+                        {/* 3. NEW: AMOUNT SECTION */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 'auto' }}>
+                          <AnimatePresence mode="wait">
+                            {item.amount > 0 ? (
+                              <motion.input
+                                key="amount-input"
+                                initial={{ opacity: 0, x: 10, width: 0 }}
+                                animate={{ opacity: 1, x: 0, width: 50 }}
+                                exit={{ opacity: 0, x: 10, width: 0 }}
+                                type="number"
+                                placeholder="1"
+                                value={item.amount}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => {
+                                  const val = e.target.value === '' ? 0 : Number(e.target.value);
+                                  setGroceryAmount(item.id, val);
+                                }}
+                                style={{
+                                  background: 'rgba(255,255,255,0.05)',
+                                  border: '1px solid rgba(255,255,255,0.1)',
+                                  borderRadius: 6,
+                                  color: '#fff',
+                                  padding: '4px 8px',
+                                  fontSize: 14,
+                                  outline: 'none'
+                                }}
+                              />
+                            ) : null}
+                          </AnimatePresence>
+
+                          <motion.button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleGroceryAmountMode(item.id); 
+                            }}
+                            whileHover={{ background: 'rgba(14, 165, 233, 0.2)' }}
+                            style={{
+                              background: item.amount > 0 ? '#0ea5e9' : 'rgba(255,255,255,0.05)',
+                              border: 'none',
+                              borderRadius: 8,
+                              color: item.amount > 0 ? '#fff' : '#7a6a7a',
+                              padding: '4px 10px',
+                              fontSize: 12,
+                              cursor: 'pointer',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            {item.amount > 0 ? 'כמות' : '#'}
+                          </motion.button>
+                        </div>
+
+                        {/* 4. DELETE BUTTON */}
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flexShrink: 0 }}>
+                          <motion.button
+                            onClick={(e) => {
+                              e.stopPropagation(); 
+                              setPendingGroceryItem(item)
+                              setShowDeleteGroceryConfirmDialog(true)
+                            }}
+                            whileHover={{ scale: 1.15, color: "#e87080" }}
+                            whileTap={{ scale: 0.9 }}
+                            style={{
+                              background: "rgba(255,255,255,0.04)",
+                              border: "1px solid rgba(255,255,255,0.08)",
+                              color: "#4a3a5a", 
+                              borderRadius: 8,
+                              width: 28, height: 28,
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              cursor: "pointer", fontSize: 17, lineHeight: 1,
+                              transition: "color 0.18s",
+                            }}
+                          >
+                            X
+                          </motion.button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                  )}
                 </GlassCard>
               </motion.div>
             )}
@@ -481,32 +578,32 @@ export default function KitchenHomePage() {
             {activeTab === 'recipes' && (
               <motion.div key="recipes" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}>
                 <GlassCard style={{ padding: '24px', marginBottom: 20 }}>
-                  
+
                   <form onSubmit={handleAddRecepie} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
-                    <DarkInput 
-                      value={recipeInput.name} 
-                      onChange={e => setRecipeInput({ ...recipeInput, name: e.target.value })} 
-                      placeholder="שם המתכון (לדוגמה: פסטה רוזה)" 
+                    <DarkInput
+                      value={recipeInput.name}
+                      onChange={e => setRecipeInput({ ...recipeInput, name: e.target.value })}
+                      placeholder="שם המתכון (לדוגמה: פסטה רוזה)"
                     />
 
                     {/* --- TOGGLE HEADER --- */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 4px' }}>
                       <span style={{ fontSize: 13, color: '#64748b', fontWeight: 500 }}>סוג מתכון:</span>
                       <div style={{ display: 'flex', background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 2 }}>
-                        <button 
+                        <button
                           type="button"
-                          onClick={() => {setIsLinkMode(true); setRecipeInput({...recipeInput, link: "", description: ""})}}
-                          style={{ 
+                          onClick={() => {setIsLinkMode(true); setRecipeInput({...recipeInput, link: "", description: "", ingredients: ""})}}
+                          style={{
                             border: 'none', padding: '4px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
                             background: isLinkMode ? '#0ea5e9' : 'transparent',
                             color: isLinkMode ? '#fff' : '#94a3b8',
                             transition: '0.2s'
                           }}
                         >קישור חיצוני</button>
-                        <button 
+                        <button
                           type="button"
-                          onClick={() => {setIsLinkMode(false); setRecipeInput({...recipeInput, link: "", description: ""})}}
-                          style={{ 
+                          onClick={() => {setIsLinkMode(false); setRecipeInput({...recipeInput, link: "", description: "", ingredients: ""})}}
+                          style={{
                             border: 'none', padding: '4px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
                             background: !isLinkMode ? '#0ea5e9' : 'transparent',
                             color: !isLinkMode ? '#fff' : '#94a3b8',
@@ -526,10 +623,10 @@ export default function KitchenHomePage() {
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.2 }}
                         >
-                          <DarkInput 
-                            value={recipeInput.link} 
-                            onChange={e => setRecipeInput({ ...recipeInput, link: e.target.value })} 
-                            placeholder="הדבק לינק (TikTok, Instagram, אתר)" 
+                          <DarkInput
+                            value={recipeInput.link}
+                            onChange={e => setRecipeInput({ ...recipeInput, link: e.target.value })}
+                            placeholder="הדבק לינק (TikTok, Instagram, אתר)"
                           />
                         </motion.div>
                       ) : (
@@ -540,12 +637,12 @@ export default function KitchenHomePage() {
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.2 }}
                         >
-                          <textarea 
-                            value={recipeInput.description} 
-                            onChange={e => setRecipeInput({ ...recipeInput, description: e.target.value })} 
+                          <textarea
+                            value={recipeInput.description}
+                            onChange={e => setRecipeInput({ ...recipeInput, description: e.target.value })}
                             placeholder="כתוב את הוראות ההכנה כאן..."
                             style={{
-                              width: '100%', minHeight: 100, background: 'rgba(0,0,0,0.2)', 
+                              width: '100%', minHeight: 100, background: 'rgba(0,0,0,0.2)',
                               border: '1px solid rgba(255,255,255,0.1)', borderRadius: 11,
                               padding: 12, color: '#f0e8d8', fontFamily: 'inherit', outline: 'none'
                             }}
@@ -554,98 +651,297 @@ export default function KitchenHomePage() {
                       )}
                     </AnimatePresence>
 
+                    {/* --- OPTIONAL INGREDIENTS FIELD --- */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <span style={{ fontSize: 12, color: '#64748b', paddingRight: 4 }}>
+                        רכיבים <span style={{ color: '#334155' }}>(אופציונלי — לחיפוש לפי מה שיש בבית)</span>
+                      </span>
+                      <DarkInput
+                        value={recipeInput.ingredients}
+                        onChange={e => setRecipeInput({ ...recipeInput, ingredients: e.target.value })}
+                        placeholder="לדוגמה: עגבניות, גבינה, פסטה..."
+                      />
+                    </div>
+
                     <motion.button
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      style={{ background: 'linear-gradient(135deg, #0284c7, #06b6d4)',
-                      color: '#fff', border: 'none', borderRadius: 11, padding: '12px', fontWeight: 600, cursor: 'pointer' }}
+                      style={{
+                        background: 'linear-gradient(135deg, #0284c7, #06b6d4)',
+                        color: '#fff', border: 'none', borderRadius: 11, padding: '12px', fontWeight: 600, cursor: 'pointer'
+                      }}
                       type="submit">
                       שמור לכספת המתכונים
                     </motion.button>
                   </form>
 
-                  {/* --- LIST DISPLAY --- */}
+                  {/* --- SEARCH BAR + INGREDIENT MODAL TRIGGER --- */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+                    <DarkInput
+                      value={recipeSearch}
+                      onChange={e => setRecipeSearch(e.target.value)}
+                      placeholder="🔍 חפש מתכון לפי שם..."
+                    />
+                    <motion.button
+                      onClick={() => { setShowIngredientModal(true); setIngredientQuery(''); }}
+                      whileHover={{ scale: 1.05, boxShadow: '0 0 16px rgba(16,185,129,0.3)' }}
+                      whileTap={{ scale: 0.95 }}
+                      title="חפש לפי רכיבים שיש בבית"
+                      style={{
+                        flexShrink: 0,
+                        background: 'linear-gradient(135deg, #059669, #10b981)',
+                        color: '#fff', border: 'none', borderRadius: 11,
+                        padding: '0 16px', fontWeight: 600, cursor: 'pointer',
+                        fontFamily: 'inherit', fontSize: 20, whiteSpace: 'nowrap'
+                      }}
+                    >
+                      🧺
+                    </motion.button>
+                  </div>
+
+                  {/* --- RECIPE LIST --- */}
                   <div style={{ display: 'grid', gap: 12 }}>
-                    {recipeItems.map(recipe => (
+                    {filteredRecipes.map(recipe => (
                       <motion.div
                         key={recipe.id}
                         whileHover={{ scale: 1.01, x: -4 }}
-                        style={{ 
+                        style={{
                           position: 'relative',
-                          display: 'block', 
-                          background: 'rgba(6, 182, 212, 0.1)', 
-                          border: '1px solid rgba(6, 182, 212, 0.2)', 
-                          padding: '16px 20px', 
-                          borderRadius: 14 
+                          display: 'block',
+                          background: 'rgba(6, 182, 212, 0.1)',
+                          border: '1px solid rgba(6, 182, 212, 0.2)',
+                          padding: '16px 20px',
+                          borderRadius: 14
                         }}
                       >
-                        {/* --- DELETE BUTTON --- */}
                         <motion.button
                           onClick={(e) => {
                             e.stopPropagation();
                             setPendingRecipeItem(recipe);
-                            setShowDeleteRecipeConfirmDialog(true)
+                            setShowDeleteRecipeConfirmDialog(true);
                           }}
                           whileHover={{ scale: 1.1, backgroundColor: 'rgba(232, 112, 128, 0.2)', color: '#e87080' }}
                           whileTap={{ scale: 0.9 }}
                           style={{
-                            position: 'absolute',
-                            top: 12,
-                            left: 12, // Positions it on the left
+                            position: 'absolute', top: 12, left: 12,
                             background: 'rgba(255, 255, 255, 0.05)',
                             border: '1px solid rgba(255, 255, 255, 0.1)',
-                            color: '#64748b',
-                            borderRadius: 8,
-                            width: 26,
-                            height: 26,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            cursor: 'pointer',
-                            fontSize: 14,
-                            transition: 'all 0.2s'
+                            color: '#64748b', borderRadius: 8,
+                            width: 26, height: 26,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', fontSize: 14, transition: 'all 0.2s'
                           }}
-                        >
-                          ✕
-                        </motion.button>
+                        >✕</motion.button>
 
-                        {/* --- CARD CONTENT --- */}
                         <div style={{ fontSize: 18, fontWeight: 500, color: '#f0e8d8', paddingLeft: 30 }}>
                           {recipe.name}
                         </div>
-                        
+
+                        {recipe.ingredients && (
+                          <div style={{ fontSize: 12, color: '#34d399', marginTop: 4 }}>
+                            🧺 {recipe.ingredients}
+                          </div>
+                        )}
+
                         {recipe.link ? (
-                          <a 
-                            href={recipe.link} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            style={{ fontSize: 13, color: '#38bdf8', textDecoration: 'none', display: 'inline-block', marginTop: 4 }}
-                          >
-                            לחץ לצפייה במתכון ({recipe.link}) 🔗
-                          </a>
-                        ) : (
+                            <a
+                              href={recipe.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ fontSize: 13, color: '#38bdf8', textDecoration: 'none', display: 'inline-block', marginTop: 4 }}
+                            >
+                              לחץ לצפייה במתכון ({recipe.link}) 🔗
+                            </a>
+                          ) : (
                           <div style={{ fontSize: 14, color: '#94a3b8', marginTop: 6, whiteSpace: 'pre-wrap' }}>
                             {recipe.description}
                           </div>
                         )}
                       </motion.div>
                     ))}
+
+                    {filteredRecipes.length === 0 && recipeSearch && (
+                      <div style={{ textAlign: 'center', color: '#475569', padding: '24px 0', fontSize: 14 }}>
+                        לא נמצאו מתכונים עם השם &ldquo;{recipeSearch}&rdquo;
+                      </div>
+                    )}
                   </div>
                 </GlassCard>
+
+                {/* --- INGREDIENT SEARCH MODAL --- */}
+                <AnimatePresence>
+                  {showIngredientModal && (
+                    <motion.div
+                      key="ingredient-modal-backdrop"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setShowIngredientModal(false)}
+                      style={{
+                        position: 'fixed', inset: 0, zIndex: 100,
+                        background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(6px)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+                      }}
+                    >
+                      <motion.div
+                        key="ingredient-modal"
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+                        onClick={e => e.stopPropagation()}
+                        style={{
+                          background: 'linear-gradient(145deg, #0d1f2d, #0a1a27)',
+                          border: '1px solid rgba(16,185,129,0.25)',
+                          borderRadius: 24, padding: 28, width: '100%', maxWidth: 500,
+                          boxShadow: '0 0 60px rgba(16,185,129,0.1)'
+                        }}
+                      >
+                        {/* Modal Header */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                          <div>
+                            <div style={{ fontSize: 22, fontWeight: 600, color: '#f0e8d8' }}>🧺 מה יש לי בבית?</div>
+                            <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
+                              הכנס רכיבים מופרדים בפסיקים ונמצא מתכונים מתאימים
+                            </div>
+                          </div>
+                          <motion.button
+                            onClick={() => setShowIngredientModal(false)}
+                            whileHover={{ scale: 1.1, color: '#e87080' }}
+                            style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: 22, cursor: 'pointer', lineHeight: 1 }}
+                          >✕</motion.button>
+                        </div>
+
+                        {/* Search Input */}
+                        <DarkInput
+                          value={ingredientQuery}
+                          onChange={e => setIngredientQuery(e.target.value)}
+                          placeholder="לדוגמה: ביצים, גבינה, עגבנייה"
+                          style={{ marginBottom: 20 }}
+                        />
+
+                        {/* Results */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, maxHeight: 340, overflowY: 'auto' }}>
+                          {ingredientQuery.trim() === '' ? (
+                            <div style={{ textAlign: 'center', color: '#334155', padding: '24px 0', fontSize: 14 }}>
+                              התחל להקליד רכיבים כדי לחפש מתכונים...
+                            </div>
+                          ) : ingredientResults.length === 0 ? (
+                            <motion.div
+                              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                              style={{ textAlign: 'center', color: '#475569', padding: '24px 0', fontSize: 14 }}
+                            >
+                              😕 לא נמצאו מתכונים עם הרכיבים האלה
+                            </motion.div>
+                          ) : (
+                            ingredientResults.map(recipe => (
+                              <motion.div
+                                key={recipe.id}
+                                initial={{ opacity: 0, y: 8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                style={{
+                                  background: 'rgba(16,185,129,0.08)',
+                                  border: '1px solid rgba(16,185,129,0.2)',
+                                  borderRadius: 14, padding: '14px 18px'
+                                }}
+                              >
+                                <div style={{ fontSize: 16, fontWeight: 500, color: '#f0e8d8', marginBottom: 4 }}>
+                                  {recipe.name}
+                                </div>
+                                {recipe.ingredients && (
+                                  <div style={{ fontSize: 12, color: '#34d399' }}>🧺 {recipe.ingredients}</div>
+                                )}
+                                {recipe.link ? (
+                                  <a
+                                    href={recipe.link}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ fontSize: 12, color: '#38bdf8', textDecoration: 'none', display: 'inline-block', marginTop: 4 }}
+                                  >
+                                    לחץ לצפייה במתכון 🔗
+                                  </a>
+                                ) : recipe.description ? (
+                                  <div style={{ fontSize: 13, color: '#94a3b8', marginTop: 4, whiteSpace: 'pre-wrap' }}>
+                                    {recipe.description}
+                                  </div>
+                                ) : null}
+                              </motion.div>
+                            ))
+                          )}
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
 
             {/* MOVIES TAB */}
             {activeTab === 'movies' && (
               <motion.div key="movies" initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }} transition={{ duration: 0.3 }}>
-                <GlassCard style={{ padding: '24px', marginBottom: 20, textAlign: 'center' }}>
+
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 10, 
+                  marginBottom: 16, 
+                  padding: '8px 12px',
+                  background: 'rgba(255,255,255,0.02)',
+                  borderRadius: 16,
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  overflowX: 'auto' 
+                }}>
+                  <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+                    {movieSiteItems.map(site => (
+                      <motion.a
+                        key={site.id}
+                        href={site.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        whileHover={{ scale: 1.05, background: 'rgba(255,255,255,0.08)' }}
+                        style={{
+                          padding: '6px 14px',
+                          borderRadius: 10,
+                          background: 'rgba(255,255,255,0.04)',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          color: '#7dd3fc',
+                          fontSize: 13,
+                          textDecoration: 'none',
+                          whiteSpace: 'nowrap',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6
+                        }}
+                      >
+                        <span>🌐</span> {site.name}
+                      </motion.a>
+                    ))}
+                  </div>
                   
+                  {/* Settings Gear to open the Modal */}
+                  <motion.button
+                    onClick={() => setIsSiteModalOpen(true)}
+                    whileHover={{ rotate: 90, scale: 1.1 }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: 18,
+                      cursor: 'pointer',
+                      padding: 8,
+                      opacity: 0.6
+                    }}
+                  >
+                    ⚙️
+                  </motion.button>
+                </div>
+
+                <GlassCard style={{ padding: '24px', marginBottom: 20, textAlign: 'center' }}>
                   <motion.button
                     onClick={pickRandomMovie}
                     whileHover={{ scale: 1.05, boxShadow: '0 0 20px rgba(139, 92, 246, 0.3)' }} whileTap={{ scale: 0.95 }}
                     style={{ background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)', color: '#fff', border: 'none', borderRadius: 50, padding: '14px 30px', fontSize: 16, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 24, width: '100%' }}
                   >
-                    🎲 רנדומלי: מה רואים היום?
+                    🎲 מה רואים היום?
                   </motion.button>
 
                   <AnimatePresence>
@@ -655,27 +951,138 @@ export default function KitchenHomePage() {
                         style={{ background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(139, 92, 246, 0.3)', borderRadius: 16, padding: '20px', marginBottom: 24 }}
                       >
                         <div style={{ fontSize: 12, color: '#a78bfa', marginBottom: 8 }}>הסרט שנבחר הוא:</div>
-                        <div style={{ fontSize: 24, fontWeight: 600, color: '#fff', fontFamily: "'Cormorant Garamond', serif" }}>{randomMovie}</div>
+                        <div style={{ fontSize: 24, fontWeight: 600, color: '#fff'}}>{randomMovie}</div>
                       </motion.div>
                     )}
                   </AnimatePresence>
 
                   <form onSubmit={addMovie} style={{ display: 'flex', gap: 10, marginBottom: 24 }}>
-                    <DarkInput value={movieInput} onChange={e => setMovieInput(e.target.value)} placeholder="שם סרט / סדרה להוספה..." />
+                    <DarkInput value={movieInput.name} onChange={e => setMovieInput({name:e.target.value})} placeholder="שם סרט / סדרה להוספה..." />
                     <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} style={{ background: '#8b5cf6', color: '#fff', border: 'none', borderRadius: 11, padding: '0 20px', fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                       הוסף
                     </motion.button>
                   </form>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'right' }}>
-                    {movies.map(movie => (
-                      <motion.div key={movie.id} layout initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ background: 'rgba(255,255,255,0.03)', padding: '14px 18px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.05)', color: '#e2e8f0', fontSize: 16 }}>
-                        🎬 {movie.title}
+                  <div dir="ltr" style={{ display: 'flex', flexDirection: 'column', gap: 8, textAlign: 'right' }}>
+                    {movieItems.map(movie => (
+                      <motion.div 
+                        key={movie.id} 
+                        layout 
+                        initial={{ opacity: 0, x: 20 }} 
+                        animate={{ opacity: 1, x: 0 }} 
+                        style={{ 
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between', // Pushes delete to one side, text to the other
+                          background: 'rgba(255,255,255,0.03)', 
+                          padding: '12px 18px', 
+                          borderRadius: 12, 
+                          border: '1px solid rgba(255,255,255,0.05)', 
+                          color: '#e2e8f0', 
+                          fontSize: 16 
+                        }}
+                      >
+                        {/* Delete Button (Left side) */}
+                        <motion.button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPendingMovieItem(movie);
+                            setShowDeleteMovieConfirmDialog(true);
+                          }}
+                          whileHover={{ scale: 1.1, color: '#f87171', background: 'rgba(239, 68, 68, 0.1)' }}
+                          whileTap={{ scale: 0.9 }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: '#64748b',
+                            cursor: 'pointer',
+                            fontSize: 18,
+                            padding: '4px 8px',
+                            borderRadius: 8,
+                            transition: 'all 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          ✕
+                        </motion.button>
+
+                        {/* Movie Info (Right side) */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span>{movie.name}</span>
+                          <span>🎬</span>
+                        </div>
                       </motion.div>
                     ))}
                   </div>
-
                 </GlassCard>
+                <AnimatePresence>
+                  {isSiteModalOpen && (
+                    <>
+                      <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 bg-[#03060a]/80 backdrop-blur-md z-40"
+                        onClick={() => setIsSiteModalOpen(false)}
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-60 w-full max-w-md"
+                        dir="rtl"
+                      >
+                        <GlassCard style={{ padding: 24 }}>
+                          <h2 style={{ fontSize: 20, color: '#f0e8d8', marginBottom: 20 }}>ניהול אתרי צפייה</h2>
+                          
+                          <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+                            <DarkInput 
+                              placeholder="שם האתר" 
+                              value={movieSiteInput.name} 
+                              onChange={e => setMovieSiteInput({...movieSiteInput, name: e.target.value})} 
+                            />
+                            <DarkInput 
+                              placeholder="לינק (URL)" 
+                              value={movieSiteInput.url} 
+                              onChange={e => setMovieSiteInput({...movieSiteInput, url: e.target.value})} 
+                            />
+                            <button 
+                              onClick={addMovieSite}
+                              style={{ padding: '0 16px', background: '#06b6d4', border: 'none', borderRadius: 11, color: '#fff', cursor: 'pointer' }}
+                            >
+                              הוסף
+                            </button>
+                          </div>
+
+                          <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {movieSiteItems.map(site => (
+                              <div key={site.id} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: 12 }}>
+                                <span style={{ color: '#e2e8f0' }}>{site.name}</span>
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation(); 
+                                    setPendingMovieSiteItem(site)
+                                    setShowDeleteMovieSiteConfirmDialog(true)
+                                  }}
+                                  style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer' }}
+                                >
+                                  מחק
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+
+                          <button 
+                            onClick={() => setIsSiteModalOpen(false)}
+                            style={{ width: '100%', marginTop: 24, padding: 12, background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: 12, color: '#f0e8d8', cursor: 'pointer' }}
+                          >
+                            סגור
+                          </button>
+                        </GlassCard>
+                      </motion.div>
+                    </>
+                  )}
+                </AnimatePresence>
               </motion.div>
             )}
 

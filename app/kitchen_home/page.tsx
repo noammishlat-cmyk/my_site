@@ -261,6 +261,9 @@ export default function KitchenHomePage() {
 
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  const [selectedRecipe, setSelectedRecipe] = useState<typeof recipeItems[0] | null>(null);
+
+
   const handleCopy = (recipe: any) => {
     const content = recipe.link || recipe.description || '';
     const text = `${recipe.name}\n${recipe.ingredients ? 'מצרכים: ' + recipe.ingredients : ''}\n${content}`;
@@ -732,8 +735,10 @@ export default function KitchenHomePage() {
                       return (
                         <motion.div
                           key={recipe.id}
+                          onClick={() => setSelectedRecipe(recipe)}
+                          whileTap={{ scale: 0.98 }}
                           layout // Smooth height transitions
-                          whileHover={{ scale: 1.03 }}
+                          whileHover={{ scale: 1.02, backgroundColor: 'rgba(6, 182, 212, 0.1)' }}
                           style={{
                             position: 'relative',
                             background: 'rgba(6, 182, 212, 0.06)',
@@ -770,11 +775,18 @@ export default function KitchenHomePage() {
 
                           {/* Collapsible Content Area */}
                           <div style={{ 
-                            maxHeight: isExpanded ? '1000px' : '120px', 
-                            overflow: 'hidden', 
-                            transition: 'max-height 0.4s ease-in-out',
-                            position: 'relative'
-                          }}>
+                              maxHeight: isExpanded ? '1000px' : '120px', 
+                              overflow: 'hidden', 
+                              transition: 'max-height 0.4s ease-in-out',
+                              position: 'relative',
+                              // This is the magic part:
+                              WebkitMaskImage: !isExpanded && hasExpandableContent 
+                                ? 'linear-gradient(to bottom, black 60%, transparent 100%)' 
+                                : 'none',
+                              maskImage: !isExpanded && hasExpandableContent 
+                                ? 'linear-gradient(to bottom, black 60%, transparent 100%)' 
+                                : 'none'
+                            }}>
                             {recipe.ingredients && (
                               <div style={{ fontSize: 12, color: '#34d399', marginTop: 4 }}>
                                 🧺 {recipe.ingredients}
@@ -800,7 +812,7 @@ export default function KitchenHomePage() {
                             {hasExpandableContent && !isExpanded && (
                               <div style={{
                                 position: 'absolute', bottom: 0, left: 0, right: 0,
-                                height: 30, background: 'linear-gradient(to top, rgba(12, 20, 35, 0.9), transparent)',
+                                height: 30, background: 'linear-gradient(to top, rgba(6, 182, 212, 0.06), transparent)',
                                 pointerEvents: 'none'
                               }} />
                             )}
@@ -820,7 +832,10 @@ export default function KitchenHomePage() {
                                 animate={{ rotate: isExpanded ? 180 : 0 }}
                                 whileHover={{ scale: 1.2 }}
                                 whileTap={{ scale: 0.9 }}
-                                onClick={() => toggleExpand(recipe.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleExpand(recipe.id);
+                                }}
                                 style={{
                                   background: 'rgba(255,255,255,0.05)',
                                   border: 'none', color: '#06b6d4',
@@ -837,7 +852,10 @@ export default function KitchenHomePage() {
                             <motion.button
                               whileHover={{ scale: 1.05 }}
                               whileTap={{ scale: 0.95 }}
-                              onClick={() => handleCopy(recipe)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopy(recipe);
+                              }}
                               style={{ 
                                 background: 'none', 
                                 border: 'none', 
@@ -881,6 +899,17 @@ export default function KitchenHomePage() {
                     })}
                   </div>
                 </GlassCard>
+
+                <AnimatePresence mode="wait">
+                  {selectedRecipe && (
+                    <RecipeDetailModal 
+                      recipe={selectedRecipe} 
+                      onClose={() => setSelectedRecipe(null)}
+                      handleCopy={handleCopy}
+                      copiedId={copiedId}
+                    />
+                  )}
+                </AnimatePresence>
 
                 {/* --- INGREDIENT SEARCH MODAL --- */}
                 <AnimatePresence>
@@ -1211,3 +1240,184 @@ export default function KitchenHomePage() {
     </>
   );
 }
+
+
+const RecipeDetailModal = ({ 
+  recipe, 
+  onClose, 
+  handleCopy, 
+  copiedId 
+}: { 
+  recipe: any, 
+  onClose: () => void, 
+  handleCopy: (r: any) => void, 
+  copiedId: string | null 
+}) => {
+  const isCopied = copiedId === recipe.id;
+
+    return (
+      <motion.div
+        key="recipe-modal-backdrop" // Stable key
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 20,
+        }}
+      >
+        <motion.div
+          key="recipe-modal-content" // Stable key: prevents re-triggering spring on state change
+          initial={{ opacity: 0, scale: 0.92, y: 24 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.92, y: 24 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+          onClick={e => e.stopPropagation()}
+          style={{
+            background: 'linear-gradient(145deg, #0d1f2d, #081521)',
+            border: '1px solid rgba(6, 182, 212, 0.22)',
+            borderRadius: 26, padding: 28,
+            width: '100%', maxWidth: 520,
+            maxHeight: '85vh', overflowY: 'auto',
+            boxShadow: '0 0 80px rgba(6, 182, 212, 0.08)',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+            <h2 style={{
+              fontSize: 'clamp(18px, 5vw, 24px)', fontWeight: 600,
+              color: '#f0e8d8', margin: 0, lineHeight: 1.25, paddingLeft: 36,
+            }}>
+              {recipe.name}
+            </h2>
+            <motion.button
+              onClick={onClose}
+              whileHover={{ scale: 1.1, color: '#e87080' }}
+              style={{
+                background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                borderRadius: 10, color: '#64748b', fontSize: 18,
+                width: 32, height: 32, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}
+            >✕</motion.button>
+          </div>
+
+          {/* Divider */}
+          <div style={{ height: 1, background: 'linear-gradient(90deg, rgba(6,182,212,0.4), transparent)', marginBottom: 20 }} />
+
+          {/* Ingredients */}
+          {recipe.ingredients && (
+            <div style={{
+              background: 'rgba(52, 211, 153, 0.07)',
+              border: '1px solid rgba(52, 211, 153, 0.18)',
+              borderRadius: 14, padding: '14px 18px', marginBottom: 18,
+            }}>
+              <div style={{ fontSize: 11, color: '#34d399', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>
+                מצרכים
+              </div>
+              <div style={{ fontSize: 15, color: '#d1fae5', lineHeight: 1.7 }}>
+                {recipe.ingredients}
+              </div>
+            </div>
+          )}
+
+          {/* Link or Description */}
+          {recipe.link ? (
+            <div style={{
+              background: 'rgba(56, 189, 248, 0.06)',
+              border: '1px solid rgba(56, 189, 248, 0.15)',
+              borderRadius: 14, padding: '14px 18px', marginBottom: 18,
+            }}>
+              <div style={{ fontSize: 11, color: '#38bdf8', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+                קישור למתכון
+              </div>
+              <a
+                href={recipe.link.startsWith('http') ? recipe.link : `https://${recipe.link}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  fontSize: 14, color: '#7dd3fc', textDecoration: 'none',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  wordBreak: 'break-all',
+                }}
+              >
+                🔗 {recipe.link}
+              </a>
+            </div>
+          ) : recipe.description ? (
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.07)',
+              borderRadius: 14, padding: '14px 18px', marginBottom: 18,
+            }}>
+              <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+                הוראות הכנה
+              </div>
+              <div style={{ fontSize: 15, color: '#cbd5e1', lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+                {recipe.description}
+              </div>
+            </div>
+          ) : null}
+
+
+          {/* Footer - FIXED JUMPING */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+            <motion.button
+              whileHover={{ scale: 1.03 }} 
+              whileTap={{ scale: 0.97 }}
+              onClick={() => handleCopy(recipe)}
+              style={{
+                flex: 1, 
+                height: 46, // Fixed height prevents vertical jumping
+                padding: '0 12px',
+                background: isCopied ? 'rgba(52, 211, 153, 0.15)' : 'rgba(255,255,255,0.05)',
+                border: `1px solid ${isCopied ? 'rgba(52,211,153,0.4)' : 'rgba(255,255,255,0.1)'}`,
+                borderRadius: 13, 
+                color: isCopied ? '#34d399' : '#94a3b8',
+                fontSize: 14, 
+                cursor: 'pointer', 
+                fontFamily: 'inherit',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                whiteSpace: 'nowrap', // Prevents text wrapping from changing height
+                transition: 'background 0.25s, border 0.25s, color 0.25s', // Exclude 'all' to prevent layout-related transitions
+              }}
+            >
+              {isCopied ? (
+                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                  ✓ הועתק
+                </motion.span>
+              ) : (
+                <span>📋 העתק מתכון</span>
+              )}
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.03 }} 
+              whileTap={{ scale: 0.97 }}
+              onClick={onClose}
+              style={{
+                flex: 1, 
+                height: 46, // Match height of the copy button
+                padding: '0 12px',
+                background: 'linear-gradient(135deg, #0284c7, #06b6d4)',
+                border: 'none', 
+                borderRadius: 13,
+                color: '#f0fff8', 
+                fontSize: 14, 
+                cursor: 'pointer', 
+                fontFamily: 'inherit', 
+                fontWeight: 600,
+              }}
+            >
+              סגור
+            </motion.button>
+          </div>
+        </motion.div>
+      </motion.div>
+    );
+  };

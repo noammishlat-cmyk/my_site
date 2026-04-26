@@ -283,7 +283,8 @@ export default function MoneyReportPage() {
   if (authLoading) {
     return (
       <div className={`flex items-center justify-center min-h-screen ${hebrew_font.className}`}
-        style={{ background: '#040d08' }}>
+        style={{ background: '#040d08' }}
+        dir="rtl">
         <motion.p
           animate={{ opacity: [0.3,1,0.3] }}
           transition={{ duration: 1.8, repeat: Infinity }}

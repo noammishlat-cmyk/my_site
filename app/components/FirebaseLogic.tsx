@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { db, auth } from '@/app/lib/firebase';
+import { db, auth, storage } from '@/app/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import {
   collection,
   getDocs,
@@ -16,6 +17,7 @@ import {
   updateDoc,
   where,
   getDoc,
+  onSnapshot,
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -103,6 +105,18 @@ export interface MovieSiteItem {
   timestamp?: Timestamp;
 }
 
+export interface MemoryItem {
+  id: string;
+  title: string;
+  location: string;
+  date: Date
+  description: string;
+  image: string;
+  createdBy: string;
+  timestamp?: Timestamp;
+}
+
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useFirebaseLogic() {
@@ -113,6 +127,17 @@ export function useFirebaseLogic() {
   const [authLoading, setAuthLoading] = useState(true);
   const [submitting,  setSubmitting]  = useState(false);
   const [error,       setError]       = useState<string | null>(null);
+
+  const getStorageUrl = async (path: string) => {
+    try {
+      const fileRef = ref(storage, path);
+      const url = await getDownloadURL(fileRef);
+      return url;
+    } catch (err) {
+      console.error("נכשל בשליפת ה-URL:", err);
+      return null;
+    }
+  };
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (user) => {
@@ -719,7 +744,7 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
     if (!item.name.trim() || !currentUser) return false;
     try {
       await addDoc(collection(db, 'recepies'), {
-        ...item, createdBy: currentUser, timestamp: Timestamp.now(), completed: false,
+        ...item, createdBy: currentUser, timestamp: Timestamp.now()
       });
       fetchRecipeItems();
       return true;
@@ -823,6 +848,62 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
     }
   }, []);
 
+
+  // ══════════════════════════════════════════════════════════════════════════
+  //  Achievements PAGE
+  // ══════════════════════════════════════════════════════════════════════════
+
+
+  const uploadMemory = async (title: string, date: string, location: string, description: string, imageFile: File) => {
+    setSubmitting(true);
+    setError(null);
+    
+    try {
+      // 1. Upload to Storage
+      const storageRef = ref(storage, `memories/${Date.now()}_${imageFile.name}`);
+      const snapshot = await uploadBytes(storageRef, imageFile);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+
+      // 2. Save to Firestore
+      const logData = {
+        title,
+        date: new Date(date),
+        location,
+        description,
+        image: downloadURL,
+        createdAt: new Date()
+      };
+
+      const docRef = await addDoc(collection(db, "memories"), logData);
+      
+      setSubmitting(false);
+      return { ...logData, id: docRef.id };
+    } catch (err: any) {
+      setError(err.message);
+      setSubmitting(false);
+      throw err;
+    }
+  };
+
+  const fetchMemories = (callback: (logs: MemoryItem[]) => void) => {
+    // Create a query that orders by date
+    const q = query(collection(db, "memories"), orderBy("date", "asc"));
+    
+    // Return the listener so we can turn it off later
+    return onSnapshot(q, (snapshot) => {
+      const logsData = snapshot.docs.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          // Convert Firebase Timestamp back to a JS Date object
+          date: data.date?.toDate() || new Date(), 
+        } as MemoryItem;
+      });
+      callback(logsData);
+    });
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
   //  RETURN
   // ─────────────────────────────────────────────────────────────────────────
@@ -835,6 +916,7 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
     error,
     setError,
     getUsername,
+    getStorageUrl,
 
     // ── Money report ──
     products,
@@ -892,5 +974,9 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
     fetchMovieSiteItems,
     addMovieSiteItem,
     deleteMovieSiteItem,
+
+    // ── Achievements page ──
+    uploadMemory,
+    fetchMemories,
   };
 }

@@ -131,10 +131,10 @@ const NAV_CARDS = [
     icon:  "💸",
     label: "דוח עלויות",
     sub:   "הוצאות חודשיות",
-    accent: "#e8a060",
-    glow:   "rgba(232, 160, 96, 0.22)",
-    border: "rgba(232, 160, 96, 0.28)",
-    grad:   "linear-gradient(135deg, rgba(232,160,96,0.12) 0%, rgba(200,90,80,0.08) 100%)",
+    accent: "#10b981",
+    glow:   "rgba(16, 185, 129, 0.22)",
+    border: "rgba(16, 185, 129, 0.28)",
+    grad:   "linear-gradient(135deg, rgba(16, 185, 129, 0.12) 0%, rgba(5, 150, 105, 0.08) 100%)",
   },
   {
     route: "/dates",
@@ -155,6 +155,16 @@ const NAV_CARDS = [
     glow:   "rgba(6, 182, 212, 0.18)",
     border: "rgba(6, 182, 212, 0.25)",
     grad:   "linear-gradient(135deg, rgba(6, 182, 212, 0.12) 0%, rgba(245, 158, 11, 0.08) 100%)",
+  },
+  {
+    route: "/time_capsule",
+    icon:  "❤️",
+    label: "הרגעים שלנו",
+    sub:   "מערבולת הזמן...",
+    accent: "#f59e0b",
+    glow:   "rgba(245, 158, 11, 0.18)",
+    border: "rgba(245, 158, 11, 0.25)",
+    grad:   "linear-gradient(135deg, rgba(245, 158, 11, 0.12) 0%, rgba(251, 191, 36, 0.08) 100%)",
   },
 ];
 

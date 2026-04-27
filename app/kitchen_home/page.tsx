@@ -183,6 +183,7 @@ export default function KitchenHomePage() {
     fetchMovieSiteItems,
     addMovieSiteItem,
     deleteMovieSiteItem,
+    authLoading,
   } = useFirebaseLogic();
   
   const [activeTab, setActiveTab] = useState<'groceries' | 'recipes' | 'movies'>('groceries');
@@ -331,6 +332,31 @@ export default function KitchenHomePage() {
     { id: 'recipes', label: 'כספת המתכונים', icon: '🍲' },
     { id: 'movies', label: 'סרטים לצפייה', icon: '🍿' },
   ] as const;
+
+  if (authLoading) {
+    return (
+      <div className={`flex items-center justify-center min-h-screen ${hebrew_font.className}`}
+        style={{ background: '#040d08' }}
+        dir="rtl">
+        <motion.p
+          animate={{ opacity: [0.3,1,0.3] }}
+          transition={{ duration: 1.8, repeat: Infinity }}
+          style={{ color: '#06b6d4', fontSize: 18, letterSpacing: '0.12em' }}
+        >
+          טוען...
+        </motion.p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div dir="rtl" className={`flex items-center justify-center min-h-screen ${hebrew_font.className}`}
+        style={{ background: '#040d08' }}>
+        <p style={{ color: '#f0e8d8', fontSize: 18 }}>יש להתחבר כדי לצפות ולנהל הוצאות.</p>
+      </div>
+    );
+  }
 
   return (
     <>

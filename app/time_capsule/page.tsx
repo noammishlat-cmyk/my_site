@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence, useScroll, useTransform, useSpring, useInView } from "framer-motion";
-import { Plus, Calendar, MapPin, Award, X, Navigation, ChevronRight, ArrowUp } from "lucide-react";
+import { Plus, Calendar, MapPin, Award, X, Navigation, ChevronRight, ArrowUp, ChevronLeft, Trash2 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from 'next/navigation';
 import { uploadBytes } from 'firebase/storage';
 import { useFirebaseLogic } from "../components/FirebaseLogic";
 import { useOptions } from "../options";
+import ConfirmDialog from "../components/ConfirmDialog";
 
 
 // --- Types ---
@@ -15,7 +16,7 @@ interface Memory {
   id: string;
   title: string;
   location: string;
-  date: Date
+  date: Date | any;
   description: string;
   image: string;
   createdBy: string;
@@ -207,24 +208,41 @@ export default function MobileAchievementBlog() {
  const heroRef = useRef(null);
   const isHeroInView = useInView(heroRef, { amount: 0.5, once: false });
   const router = useRouter();
-  const { uploadMemory, fetchMemories, authLoading, currentUser } = useFirebaseLogic();
+  const { uploadMemory, fetchMemories, authLoading, currentUser, deleteMemory, updateMemory } = useFirebaseLogic();
   const { hebrew_font } = useOptions();
-  const [logs, setLogs] = useState<Memory[]>([]);
+  const [memories, setMemories] = useState<Memory[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const [isEditNavOpen, setIsEditNavOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [pendingItem, setPendingItem] = useState<{id: string, title: string} | null>(null)
+
+  const [pendingEditItem, setPendingEditItem] = useState<Memory | null>(null)
+
+  const CancleDelete = () => { 
+    setPendingItem(null);
+    setShowDeleteModal(false);
+  };
+  const ConfirmDelete = () => {
+    if (pendingItem) {
+      deleteMemory(pendingItem.id);
+      setShowDeleteModal(false);
+    }
+  };
 
   useEffect(() => {
     if (!currentUser) return;
     const unsubscribe = fetchMemories((fetchedMemories) => {
-      setLogs(fetchedMemories);
+      setMemories(fetchedMemories);
     });
     return () => unsubscribe();
   }, [fetchMemories, currentUser]);
 
   // 2. FUNCTIONS SECOND (Defined before early returns)
-  const handleAddNewLog = async (newMemory: Memory) => {
-    setLogs((prevMemories) => [newMemory, ...prevMemories]);
+  const handleAddNewMemory = async (newMemory: Memory) => {
+    setMemories((prevMemories) => [newMemory, ...prevMemories]);
   };
 
   const scrollTo = (id: string) => {
@@ -252,7 +270,7 @@ export default function MobileAchievementBlog() {
       className="relative bg-[#0a0a09] text-white overflow-y-auto h-screen snap-y snap-mandatory scroll-smooth"
       dir="rtl"
     >
-      {/* 1. AUTH OVERLAYS (Conditional content, not conditional return) */}
+      {/* AUTH OVERLAYS */}
       {authLoading && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#040d08]">
            <motion.p 
@@ -266,15 +284,26 @@ export default function MobileAchievementBlog() {
 
       {!authLoading && !currentUser && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#040d08]">
-           <p className="text-[#f0e8d8] text-[18px]">יש להתחבר כדי לצפות ולנהל הוצאות.</p>
+           <p className="text-[#f0e8d8] text-[18px]">יש להתחבר כדי לצפות במנהרת הזמן שלנו.</p>
         </div>
       )}
 
-      {/* 2. THE ACTUAL CONTENT (Always rendered, but hidden until ready) */}
+      {/* ACTUAL CONTENT */}
       <div className={(authLoading || !currentUser) ? "invisible" : "visible"}>
         <StarField />
         <Orbs />
         <GrainOverlay />
+
+        {/* ── Confirm deletion dialog ── */}
+        <ConfirmDialog
+          isOpen={showDeleteModal}
+          title={"למחוק זיכרון?"}
+          message={`האם למחוק את הזיכרון : '${pendingItem?.title}'?`}
+          confirmText="מחק" cancelText="בטל"
+          onConfirm={ConfirmDelete}
+          onCancel={() => { setShowDeleteModal(false); CancleDelete; }}
+          isDangerous
+        />
 
         {/* Fixed Home Button */}
         <motion.button
@@ -296,6 +325,27 @@ export default function MobileAchievementBlog() {
           }}
         >
           <Image className="invert" src="/home_icon.svg" width="26" height="26" alt="Back" />
+        </motion.button>
+        {/* Fixed Edit Events Button */}
+        <motion.button
+          onClick={() => setIsEditNavOpen(true)}
+          className="fixed top-6 left-6 z-50"
+          // 2. Animate based on the HERO section's visibility
+          initial={{ opacity: 0 }}
+          animate={{ 
+            opacity: isHeroInView ? 1 : 0,
+            pointerEvents: isHeroInView ? 'auto' : 'none' 
+          }}
+          transition={{ duration: 0.4 }}
+          style={{
+            background: 'rgba(255,255,255,0.06)', 
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.1)', 
+            borderRadius: 16, 
+            padding: 14,
+          }}
+        >
+          <Image className="invert" src="/pencil.svg" width="26" height="26" alt="Back" />
         </motion.button>
         {/* Scroll to Top Button */}
         <AnimatePresence>
@@ -330,13 +380,13 @@ export default function MobileAchievementBlog() {
         </section>
 
         {/* Achievement Sections */}
-        {logs.map((log, index) => (
+        {memories.map((memory, index) => (
           <section 
-            id={log.id} 
-            key={log.id} 
+            id={memory.id} 
+            key={memory.id} 
             className="h-screen snap-start snap-always flex items-center justify-center p-4 md:p-12 relative z-10"
           >
-            <FullscreenLog log={log} index={index} />
+            <FullscreenLog log={memory} index={index} />
           </section>
         ))}
 
@@ -382,14 +432,14 @@ export default function MobileAchievementBlog() {
               <p className="text-amber-500/50 text-xs font-bold uppercase tracking-widest mb-8">קפוץ לזיכרון</p>
               <nav className="flex flex-col gap-6 ">
                 <button onClick={() => scrollTo('hero')} className="text-center text-2xl font-serif text-white/80 hover:text-amber-500 transition-colors">♥ הרגעים שלנו ♥</button>
-                {logs.map((log, i) => (
+                {memories.map((memory, i) => (
                   <button 
-                    key={log.id} 
-                    onClick={() => scrollTo(log.id)}
+                    key={memory.id} 
+                    onClick={() => scrollTo(memory.id)}
                     className="text-right group flex items-center justify-between"
                   >
                     <span className="text-2xl md:text-5xl font-serif font-bold text-amber-50/70 group-hover:text-amber-500 transition-colors">
-                      {String(i + 1).padStart(2, '0')}. {log.title}
+                      {String(i + 1).padStart(2, '0')}. {memory.title}
                     </span>
                     <ChevronRight className="text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                   </button>
@@ -399,13 +449,75 @@ export default function MobileAchievementBlog() {
           )}
         </AnimatePresence>
 
+        {/* Edit Nav Drawer */}
+        <AnimatePresence>
+          {isEditNavOpen && (
+            <motion.div 
+              initial={{ opacity: 0, y: 100 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              exit={{ opacity: 0, y: 100 }}
+              className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl p-8 flex flex-col justify-center"
+              dir="rtl"
+            >
+              {/* Close Button - Positioned top-left in RTL */}
+              <button onClick={() => setIsEditNavOpen(false)} className="absolute top-8 left-8 text-amber-500 hover:rotate-90 transition-transform">
+                <X size={32}/>
+              </button>
+              
+              <p className="text-amber-500/50 text-xs text-center font-bold uppercase tracking-widest mb-12">ערוך זכרונות</p>
+              
+              <nav className="flex flex-col gap-8 max-w-5xl mx-auto w-full">
+                {memories.map((memory, i) => (
+                  <div 
+                    key={memory.id} 
+                    className="group flex items-center justify-between border-b border-white/10 pb-6 hover:border-amber-500/30 transition-colors cursor-pointer"
+                    onClick={() => {
+                      setPendingEditItem(memory);
+                      setIsEditModalOpen(true);
+                      setIsEditNavOpen(false);
+                    }}
+                  >
+                    {/* 1. Right Side (Start of RTL): Title & Index */}
+                    <div className="flex items-center gap-6">
+                      <span className="text-3xl md:text-6xl font-serif font-bold text-amber-50/70 group-hover:text-amber-500 transition-colors">
+                        {String(i + 1).padStart(2, '0')}. {memory.title}
+                      </span>
+                      <ChevronLeft className="text-amber-500 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0" />
+                    </div>
+
+                    {/* 2. Left Side (End of RTL): Buttons */}
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPendingItem(memory);
+                          setShowDeleteModal(true);
+                        }}
+                        className="p-3 rounded-full hover:bg-red-500/20 text-red-500 transition-all active:scale-90"
+                      >
+                        <Trash2 size={24} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </nav>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Modals */}
         <AnimatePresence>
           {isModalOpen &&
-            <AddLogModal 
+            <AddMemoryModal 
               onClose={() => setIsModalOpen(false)} 
-              onAdd={handleAddNewLog}
+              onAdd={handleAddNewMemory}
               uploadMemory={uploadMemory}
+          />}
+          {isEditModalOpen &&
+            <EditModal 
+              EditedMemory={pendingEditItem as any} 
+              updateMemory={updateMemory} 
+              onClose={() => setIsEditModalOpen(false)}
           />}
         </AnimatePresence>
       </div>
@@ -444,18 +556,25 @@ function FullscreenLog({ log, index }: { log: Memory; index: number }) {
   );
 }
 
-function AddLogModal({ onClose, onAdd, uploadMemory }: { 
+function AddMemoryModal({ onClose, onAdd, uploadMemory }: { 
   onClose: () => void; 
   onAdd: (log: Memory) => void;
   uploadMemory: any; // You can change 'any' to your specific function type later
 }) {
   const today = new Date().toISOString().split('T')[0];
-  const [formData, setFormData] = useState({ title: "", date: today, description: "", location: "", image: "https://images.unsplash.com/photo-1518173946687-a4c8a9ba336f?q=80&w=1000" });
+  const [formData, setFormData] = useState({ title: "", date: today, description: "", location: "", image: "" });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const previewUrl = imageFile ? URL.createObjectURL(imageFile) : null;
+  useEffect(() => { // Clean up memory
+  return () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  };
+}, [imageFile]);
+
   const handleSave = async () => {
-    if (!imageFile || !formData.title) return alert("Please fill in all fields");
+    if (!imageFile || !formData.title) return alert("חייב לצרף לפחות את הכותרת והתמונה");
     setLoading(true);
     try {
       const createdLog = await uploadMemory(
@@ -489,15 +608,38 @@ function AddLogModal({ onClose, onAdd, uploadMemory }: {
         <h3 className="text-xl font-serif font-bold mb-6 text-amber-500">זיכרון חדש</h3>
         <div className="space-y-4">
           <input className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 outline-none focus:border-amber-500/50" placeholder="כותרת" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
-          <div className="relative w-full bg-white/5 border border-white/10 rounded-2xl p-4">
-            <label className="text-white/50 text-sm block mb-2">בחר תמונה מהגלריה</label>
-            <input 
-              type="file" 
-              accept="image/*"
-              className="text-xs text-amber-500"
-              onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-            />
-          </div>
+            {previewUrl ? (
+              <div className="relative flex flex-col items-center w-full bg-white/5 border border-white/10 rounded-xl p-2">
+                <div className="relative flex items-start justify-center">
+                  <div className="w-32 aspect-[4/5] md:aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-xl">
+                    <img 
+                      src={previewUrl} 
+                      alt="Preview" 
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
+
+                  {/* 2. The Close Button (Now outside the overflow-hidden container) */}
+                  <button 
+                    onClick={() => setImageFile(null)}
+                    className="absolute -top-1 -right-10 bg-white/10 hover:bg-red-500/40 p-2 rounded-full backdrop-blur-md text-white transition-all border border-white/10"
+                    title="הסר תמונה"
+                  >
+                    <X size={16} /> {/* Using Lucide icon for a cleaner look */}
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <div className="relative w-full bg-white/5 border border-white/10 rounded-2xl p-4">
+              <label className="text-white/50 text-sm block mb-2">בחר תמונה מהגלריה</label>
+              <input 
+                type="file" 
+                accept="image/*"
+                className="text-xs text-amber-500"
+                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+              />
+            </div>
+            )}
           <div className="grid grid-cols-2 gap-4">
           <input 
             type="date" 
@@ -515,6 +657,147 @@ function AddLogModal({ onClose, onAdd, uploadMemory }: {
           >
             {loading ? "מעלה תמונה..." : "שמור זיכרון"}
           </button>
+          <button onClick={onClose} className="w-full text-white/30 text-xs uppercase font-bold tracking-widest py-2">ביטול</button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function EditModal({ onClose, EditedMemory, updateMemory }: { 
+  onClose: () => void; 
+  updateMemory: (
+    id: string, 
+    fields: { title?: string; date?: Date; location?: string; description?: string }, 
+    file?: File | null
+  ) => Promise<any>;
+  EditedMemory: Memory
+}) {
+  // 2. Format the date so the <input type="date"> can read it
+  const initialDate = EditedMemory.date instanceof Date 
+    ? EditedMemory.date.toISOString().split('T')[0] 
+    : new Date().toISOString().split('T')[0];
+
+  const [formData, setFormData] = useState({ 
+    title: EditedMemory.title, 
+    date: initialDate, 
+    description: EditedMemory.description, 
+    location: EditedMemory.location 
+  });
+  
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const displayImage = imageFile ? URL.createObjectURL(imageFile) : EditedMemory.image;
+
+  const handleUpdate = async () => {
+    if (!formData.title) return alert("צריך כותרת!");
+    setLoading(true);
+    try {
+      await updateMemory(
+        EditedMemory.id,
+        { 
+          title: formData.title, 
+          location: formData.location, 
+          description: formData.description, // Fixed typo
+          date: new Date(formData.date) // Convert string back to Date for Firebase
+        },
+        imageFile
+      );
+      onClose();
+    } catch (err) {
+      alert("העדכון נכשל");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-black/80 backdrop-blur-md"
+    >
+      <motion.div 
+        initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
+        className="bg-[#141311] border-t md:border border-amber-500/30 p-8 rounded-t-[2.5rem] md:rounded-[2.5rem] w-full max-w-lg shadow-2xl"
+      >
+        <h3 className="text-xl font-serif font-bold mb-6 text-amber-500 text-right">ערוך זיכרון</h3>
+        
+        <div className="space-y-4" dir="rtl">
+          <input 
+            className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-amber-500/50" 
+            placeholder="כותרת" 
+            value={formData.title} 
+            onChange={e => setFormData({...formData, title: e.target.value})} 
+          />
+
+          {imageFile ? (
+            <div className="relative flex flex-col items-center w-full bg-white/5 border border-white/10 rounded-2xl p-2">
+              <div className="relative flex items-start justify-center">
+                <div className="w-32 aspect-[4/5] md:aspect-square rounded-2xl overflow-hidden border border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+                  <img 
+                    src={URL.createObjectURL(imageFile)} 
+                    alt="New Preview" 
+                    className="w-full h-full object-cover" 
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+                </div>
+
+                <button 
+                  onClick={() => setImageFile(null)}
+                  className="absolute -top-1 -right-10 bg-white/10 hover:bg-red-500/40 p-2 rounded-full backdrop-blur-md text-white transition-all border border-white/10"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="relative w-full bg-white/5 border border-white/10 rounded-2xl p-4">
+              {/* Current Image Preview - Small & Subtle */}
+              <div className="flex items-center gap-4 mb-2">
+                <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10 opacity-60">
+                  <img src={EditedMemory.image} className="w-full h-full object-cover" alt="Current" />
+                </div>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  className="text-xs text-amber-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-amber-500/10 file:text-amber-500 hover:file:bg-amber-500/20 transition-all"
+                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                />
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <input 
+              type="date" 
+              className="bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none" 
+              value={formData.date} 
+              onChange={e => setFormData({...formData, date: e.target.value})} 
+            />
+            <input 
+              className="bg-white/5 border border-white/10 rounded-2xl p-4 text-white outline-none focus:border-amber-500/50" 
+              placeholder="מיקום" 
+              value={formData.location} 
+              onChange={e => setFormData({...formData, location: e.target.value})} 
+            />
+          </div>
+
+          <textarea 
+            className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 min-h-[120px] text-white outline-none" 
+            placeholder="מה קרה..." 
+            value={formData.description} 
+            onChange={e => setFormData({...formData, description: e.target.value})} 
+          />
+
+          <button 
+            onClick={handleUpdate} // Fixed: was handleSave
+            disabled={loading}
+            className="w-full bg-amber-500 text-black font-black py-5 rounded-2xl active:scale-95 transition-transform disabled:opacity-50"
+          >
+            {loading ? "מעדכן..." : "שמור שינויים"}
+          </button>
+          
           <button onClick={onClose} className="w-full text-white/30 text-xs uppercase font-bold tracking-widest py-2">ביטול</button>
         </div>
       </motion.div>

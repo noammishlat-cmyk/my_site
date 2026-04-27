@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { db, auth, storage } from '@/app/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import {
   collection,
   getDocs,
@@ -904,6 +904,81 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
     });
   };
 
+  const deleteMemory = async (memoryId: string) => {
+      try {
+      // 1. Get the document reference
+      const docRef = doc(db, "memories", memoryId);
+      
+      // 2. Fetch the document to get the image URL
+      const docSnap = await getDoc(docRef);
+
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const imageUrl = data.image; // Your field name
+
+        // 3. Delete from Storage if the URL exists
+        if (imageUrl) {
+          const imageRef = ref(storage, imageUrl);
+          await deleteObject(imageRef);
+        }
+
+        // 4. Delete the Firestore document
+        await deleteDoc(docRef);
+        
+        return { success: true };
+      } else {
+        throw new Error("Document does not exist");
+      }
+    } catch (error) {
+      console.error("Error in deleteMemoryById:", error);
+      throw error;
+    }
+  };
+
+  const updateMemory = async (
+    id: string, 
+    updatedFields: { title?: string; date?: Date; location?: string; description?: string }, 
+    newImageFile?: File | null
+  ) => {
+    try {
+      const docRef = doc(db, "memories", id);
+      let finalImageUrl: string | null = null;
+
+      // 1. If a new image is provided, replace the old one
+      if (newImageFile) {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const oldData = docSnap.data();
+          
+          // Delete the old image from Storage first
+          if (oldData.image) {
+            const oldImageRef = ref(storage, oldData.image);
+            await deleteObject(oldImageRef).catch(e => console.warn("Old image not found in storage"));
+          }
+
+          // Upload the new image
+          const storageRef = ref(storage, `memories/${Date.now()}_${newImageFile.name}`);
+          const snapshot = await uploadBytes(storageRef, newImageFile);
+          finalImageUrl = await getDownloadURL(snapshot.ref);
+        }
+      }
+
+      // 2. Build the final update object
+      const updateData: any = { ...updatedFields };
+      if (finalImageUrl) {
+        updateData.image = finalImageUrl;
+      }
+
+      // 3. Update Firestore
+      await updateDoc(docRef, updateData);
+      
+      return { success: true };
+    } catch (error) {
+      console.error("Error updating memory:", error);
+      throw error;
+    }
+  };
+
   // ─────────────────────────────────────────────────────────────────────────
   //  RETURN
   // ─────────────────────────────────────────────────────────────────────────
@@ -978,5 +1053,7 @@ const setDateItemCompleted = useCallback(async (id: string, completed: boolean):
     // ── Achievements page ──
     uploadMemory,
     fetchMemories,
+    deleteMemory,
+    updateMemory,
   };
 }

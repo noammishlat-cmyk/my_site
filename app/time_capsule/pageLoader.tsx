@@ -424,84 +424,128 @@ export default function MobileAchievementBlog() {
         {/* Quick Nav Drawer */}
         <AnimatePresence>
           {isNavOpen && (
-            <motion.div 
-              initial={{ opacity: 0, y: 100 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 100 }}
-              className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl p-8 flex flex-col justify-center"
-            >
-              <button onClick={() => setIsNavOpen(false)} className="absolute top-8 right-8 text-amber-500"><X size={32}/></button>
-              <p className="text-amber-500/50 text-xs font-bold uppercase tracking-widest mb-8">קפוץ לזיכרון</p>
-              <nav className="flex flex-col gap-6 ">
-                <button onClick={() => scrollTo('hero')} className="text-center text-2xl font-serif text-white/80 hover:text-amber-500 transition-colors">♥ הרגעים שלנו ♥</button>
-                {memories.map((memory, i) => (
-                  <button 
-                    key={memory.id} 
-                    onClick={() => scrollTo(memory.id)}
-                    className="text-right group flex items-center justify-between"
-                  >
-                    <span className="text-2xl md:text-5xl font-serif font-bold text-amber-50/70 group-hover:text-amber-500 transition-colors">
-                      {String(i + 1).padStart(2, '0')}. {memory.title}
-                    </span>
-                    <ChevronRight className="text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </button>
-                ))}
-              </nav>
-            </motion.div>
+            <>
+              <style>{`
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+              `}</style>
+              <motion.div 
+                initial={{ opacity: 0, y: 100 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: 100 }}
+                // Added 'overflow-y-auto' and changed 'justify-center' to 'justify-start' for scrolling
+                className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-2xl p-8 flex flex-col justify-start overflow-y-auto no-scrollbar"
+              >
+                {/* Close Button - Made fixed or sticky so it doesn't scroll away */}
+                <button 
+                  onClick={() => setIsNavOpen(false)} 
+                  className="sticky top-0 self-end text-amber-500 mb-4 z-50"
+                >
+                  <X size={32}/>
+                </button>
+
+                <div className="max-w-2xl mx-auto w-full">
+                  <p className="text-amber-500/50 text-xs font-bold uppercase tracking-widest mb-8">
+                    קפוץ לזיכרון
+                  </p>
+                  
+                  <nav className="flex flex-col gap-6 pb-12"> {/* Added padding bottom for breathing room */}
+                    <button 
+                      onClick={() => scrollTo('hero')} 
+                      className="text-center text-2xl font-serif text-white/80 hover:text-amber-500 transition-colors mb-4"
+                    >
+                      ♥ הרגעים שלנו ♥
+                    </button>
+                    
+                    {memories.map((memory, i) => (
+                      <button 
+                        key={memory.id} 
+                        onClick={() => scrollTo(memory.id)}
+                        className="text-right group flex items-center justify-between py-2 border-b border-white/5"
+                      >
+                        <span className="text-2xl md:text-5xl font-serif font-bold text-amber-50/70 group-hover:text-amber-500 transition-colors">
+                          {String(i + 1).padStart(2, '0')}. {memory.title}
+                        </span>
+                        <ChevronRight className="text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
 
         {/* Edit Nav Drawer */}
         <AnimatePresence>
           {isEditNavOpen && (
-            <motion.div 
-              initial={{ opacity: 0, y: 100 }} 
-              animate={{ opacity: 1, y: 0 }} 
-              exit={{ opacity: 0, y: 100 }}
-              className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl p-8 flex flex-col justify-center"
-              dir="rtl"
-            >
-              {/* Close Button - Positioned top-left in RTL */}
-              <button onClick={() => setIsEditNavOpen(false)} className="absolute top-8 left-8 text-amber-500 hover:rotate-90 transition-transform">
-                <X size={32}/>
-              </button>
-              
-              <p className="text-amber-500/50 text-xs text-center font-bold uppercase tracking-widest mb-12">ערוך זכרונות</p>
-              
-              <nav className="flex flex-col gap-8 max-w-5xl mx-auto w-full">
-                {memories.map((memory, i) => (
-                  <div 
-                    key={memory.id} 
-                    className="group flex items-center justify-between border-b border-white/10 pb-6 hover:border-amber-500/30 transition-colors cursor-pointer"
-                    onClick={() => {
-                      setPendingEditItem(memory);
-                      setIsEditModalOpen(true);
-                      setIsEditNavOpen(false);
-                    }}
-                  >
-                    {/* 1. Right Side (Start of RTL): Title & Index */}
-                    <div className="flex items-center gap-6">
-                      <span className="text-3xl md:text-6xl font-serif font-bold text-amber-50/70 group-hover:text-amber-500 transition-colors">
-                        {String(i + 1).padStart(2, '0')}. {memory.title}
-                      </span>
-                      <ChevronLeft className="text-amber-500 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0" />
-                    </div>
+            <>
+              <style>{`
+                .no-scrollbar::-webkit-scrollbar { display: none; }
+                .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+              `}</style>
 
-                    {/* 2. Left Side (End of RTL): Buttons */}
-                    <div className="flex items-center gap-3">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPendingItem(memory);
-                          setShowDeleteModal(true);
+              <motion.div 
+                initial={{ opacity: 0, y: 100 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, y: 100 }}
+                // Added 'overflow-y-auto', 'no-scrollbar', and changed 'justify-center' to 'justify-start'
+                className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-2xl p-8 flex flex-col justify-start overflow-y-auto no-scrollbar"
+                dir="rtl"
+              >
+                {/* Close Button - Changed to sticky so it stays at the top-left while scrolling */}
+                <div className="sticky top-0 z-50 flex justify-start w-full">
+                  <button 
+                    onClick={() => setIsEditNavOpen(false)} 
+                    className="text-amber-500 hover:rotate-90 transition-transform p-2 bg-black/50 rounded-full backdrop-blur-sm"
+                  >
+                    <X size={32}/>
+                  </button>
+                </div>
+                
+                <div className="max-w-5xl mx-auto w-full pt-4">
+                  <p className="text-amber-500/50 text-xs text-center font-bold uppercase tracking-widest mb-12">
+                    ערוך זכרונות
+                  </p>
+                  
+                  <nav className="flex flex-col gap-8 pb-24"> {/* Extra padding bottom for mobile comfort */}
+                    {memories.map((memory, i) => (
+                      <div 
+                        key={memory.id} 
+                        className="group flex items-center justify-between border-b border-white/10 pb-6 hover:border-amber-500/30 transition-colors cursor-pointer"
+                        onClick={() => {
+                          setPendingEditItem(memory);
+                          setIsEditModalOpen(true);
+                          setIsEditNavOpen(false);
                         }}
-                        className="p-3 rounded-full hover:bg-red-500/20 text-red-500 transition-all active:scale-90"
                       >
-                        <Trash2 size={24} />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </nav>
-            </motion.div>
+                        {/* 1. Right Side (Start of RTL): Title & Index */}
+                        <div className="flex items-center gap-6">
+                          <span className="text-3xl md:text-6xl font-serif font-bold text-amber-50/70 group-hover:text-amber-500 transition-colors">
+                            {String(i + 1).padStart(2, '0')}. {memory.title}
+                          </span>
+                          <ChevronLeft className="text-amber-500 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0" />
+                        </div>
+
+                        {/* 2. Left Side (End of RTL): Buttons */}
+                        <div className="flex items-center gap-3">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPendingItem(memory);
+                              setShowDeleteModal(true);
+                            }}
+                            className="p-3 rounded-full hover:bg-red-500/20 text-red-500 transition-all active:scale-90"
+                          >
+                            <Trash2 size={24} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </nav>
+                </div>
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
 
